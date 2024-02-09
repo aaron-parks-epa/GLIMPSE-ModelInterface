@@ -156,7 +156,7 @@ public class ThumbnailUtil2 {
 //							chartName.replace(" ", ""), keys[i] + "|" + metaCol, new String[] { chartName, stitle },
 //							unit, ArrayConversion.array2String(l), column, null, data, -1);
 					Chart tempC = MyChartFactory.createChart("chart.CategoryLineChart", path,
-							chartName.replace(" ", ""), keys[i] + "|" + metaCol, new String[] { chartName, stitle },
+							chartName, keys[i] + "|" + metaCol, new String[] { chartName, stitle },
 							my_unit, ArrayConversion.array2String(l), column, null, data, -1);
 					tempC.setUnitsLookup(unitLookup);
 					
@@ -212,7 +212,7 @@ public class ThumbnailUtil2 {
 		ArrayList<Chart> chartL = new ArrayList<Chart>();
 		for (int i = 0; i < data.size(); i++) {// each meta selected
 			try {
-				chartL.add(MyChartFactory.createChart("chart.CategoryLineChart", null, chartName.replace(" ", ""),
+				chartL.add(MyChartFactory.createChart("chart.CategoryLineChart", null, chartName,
 						keys[i].trim() + "| ", new String[] { chartName, keys[i].trim() }, unit, legend, column, null,
 						data.get(i), -1));
 			} catch (ClassNotFoundException e) {
@@ -650,7 +650,7 @@ public class ThumbnailUtil2 {
 			jp.setMinimumSize(new Dimension(330, sp.getHeight()));
 			jp.setBackground(Color.GREEN);
 			jp.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 0));
-			jp.setName(chart.length + "_" + chart[firstNonNullidx].getGraphName());
+			jp.setName(chart[firstNonNullidx].getGraphName());
 			new OptionsArea(jp, chart, gridWidth, false, sp);
 			jp.add(chartPane, BorderLayout.CENTER);
 			jp.updateUI();

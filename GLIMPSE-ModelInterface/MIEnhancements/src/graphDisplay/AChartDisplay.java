@@ -120,7 +120,7 @@ public class AChartDisplay {
 			return;
 		}
 		// Set Chart and Data
-		String prefix = charts == null ? "" : String.valueOf(id) + "_";
+//		String prefix = charts == null ? "" : String.valueOf(id) + "_";
 		JFreeChart jf = chart.getChart();
 		
 
@@ -134,7 +134,9 @@ public class AChartDisplay {
 			jf.getCategoryPlot().getDomainAxis().setLabelFont(axisLableFont);
 			
 			Font titleFont=new Font("Arial",Font.BOLD,17);
-			jf.getTitle().setFont(titleFont);
+			if(jf!=null && jf.getTitle()!=null) {
+				jf.getTitle().setFont(titleFont);
+			}
 			
 			jf.getLegend().setItemFont(axisLableFont);
 			for (int j = 0; j < jf.getSubtitleCount(); j++) {
@@ -144,7 +146,7 @@ public class AChartDisplay {
 			if (jf.getTitle() != null)
 				jf.getTitle().setVisible(true); // Dan: added to make sure title visible
 			setJSplitPane(setChartPane(jf), setDataPane(jf,chart.getUnitsLookup()));
-			dialog = CreateComponent.crtJDialog(prefix + chart.getGraphName());
+			dialog = CreateComponent.crtJDialog(chart.getGraphName());
 			dialog.setSize(new Dimension(640, 480));
 			dialog.setContentPane(sp);
 			dialog.pack();

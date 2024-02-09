@@ -664,7 +664,7 @@ public class DiffResultsPanel extends QueryResultsPanel {
 		if (index_base == -1)
 			index = index_alt;
 
-		obj[0] = scenario.substring(0, scenario.indexOf(",")) + "-"
+		obj[0] = scenario.substring(0, scenario.indexOf(",")) + " minus "
 				+ base_scenario.substring(0, base_scenario.indexOf(","));
 		for (int i = 1; i < tm.getColumnCount(); i++) {
 			obj[i] = tm.getValueAt(index, i);

@@ -215,7 +215,7 @@ public class DifferenceChartPane extends JPanel {
 					
 					chart = MyChartFactory.createChart(charts[selected[0]].getChartClassName(),
 							charts[selected[0]].getPath(),
-							"Chart" + selected[0] + "-" + "Chart" + selected[1] + "_"
+							"Difference: "
 									+ charts[selected[0]].getGraphName(),
 							title, subtitle, charts[selected[0]].getAxis_name_unit(),
 							Arrays.toString(legend).replace("[", "").replace("]", ""), color, pColor, pattern,

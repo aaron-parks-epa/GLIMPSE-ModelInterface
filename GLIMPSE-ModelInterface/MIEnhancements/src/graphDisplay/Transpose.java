@@ -97,7 +97,7 @@ public class Transpose {
 
 		//Dan: Using modified version (2)
 		JPanel jp = ThumbnailUtil2.setChartPane(chart1, 0, sameScale, true, sp);
-		JDialog dialog = CreateComponent.crtJDialog("Transpose Thumbnails_" + chart1[0].getGraphName());
+		JDialog dialog = CreateComponent.crtJDialog("Transpose Thumbnails: " + chart1[0].getGraphName());
 		dialog.setContentPane(new JScrollPane(jp));// new JScrollPane(chartPane)
 		dialog.pack();
 		dialog.setSize(new Dimension(705, 805));

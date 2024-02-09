@@ -54,6 +54,11 @@ public class MyChartFactory {
 			int[] pattern, int[] lineStrokes, String[][] annotationText, 
 			DefaultCategoryDataset dataset, int relativeColIndex, boolean ShowLineAndShape, String graphType)
 			throws ClassNotFoundException {
+		
+		if(titles.length>=2 && titles[0]==null) {
+			titles[0]=titles[1];
+			titles[1]="";
+		}
 
 		Object[] o = {path, graphName, meta, titles, axis_name_unit, legend,  color, pColor,
 				pattern, lineStrokes, annotationText, dataset, relativeColIndex, ShowLineAndShape,graphType };
