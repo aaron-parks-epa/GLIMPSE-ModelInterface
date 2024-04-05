@@ -1,0 +1,6 @@
+"queries">"GLIMPSE">"Markets, prices, and costs">"Building service costs"
+"queries">"GLIMPSE">"Markets, prices, and costs">"Supply of all markets"
+"queries">"GLIMPSE">"Markets, prices, and costs">"Demand of all markets"
+"queries">"GLIMPSE">"Markets, prices, and costs">"Elec prices by sector (core)"
+"queries">"GLIMPSE">"Emissions">"CO2 emissions by region"
+"queries">"GLIMPSE">"Emissions">"CO2 emissions by sector"
