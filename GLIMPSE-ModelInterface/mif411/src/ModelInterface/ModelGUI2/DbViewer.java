@@ -30,10 +30,15 @@
 package ModelInterface.ModelGUI2;
 
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Component;
 import java.awt.Container;
 import java.awt.Cursor;
 import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.GridLayout;
 import java.awt.Toolkit;
 import java.awt.datatransfer.Clipboard;
 import java.awt.event.ActionEvent;
@@ -44,18 +49,27 @@ import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Scanner;
 import java.util.Vector;
+import java.util.stream.Collectors;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -64,8 +78,10 @@ import javax.swing.Icon;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
+import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JDialog;
+import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JList;
@@ -80,6 +96,7 @@ import javax.swing.JTabbedPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.JTree;
+import javax.swing.ListSelectionModel;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.ToolTipManager;
@@ -92,7 +109,10 @@ import javax.swing.event.TreeSelectionEvent;
 import javax.swing.event.TreeSelectionListener;
 import javax.swing.filechooser.FileFilter;
 import javax.swing.table.TableModel;
+import javax.swing.text.Position;
+import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.DefaultTreeCellRenderer;
+import javax.swing.tree.TreeModel;
 import javax.swing.tree.TreeNode;
 import javax.swing.tree.TreePath;
 import javax.swing.undo.UndoableEdit;
@@ -140,6 +160,11 @@ import ModelInterface.common.DataPair;
 import ModelInterface.common.FileChooser;
 import ModelInterface.common.FileChooserFactory;
 import ModelInterface.common.RecentFilesList.RecentFile;
+import javafx.collections.ObservableList;
+import javafx.scene.control.CheckBoxTreeItem;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.TreeItem;
+import javafx.scene.shape.Rectangle;
 
 /***
  * * Author Action Date Flag
@@ -178,6 +203,19 @@ public class DbViewer implements ActionListener, MenuAdder, BatchRunner {
 	private JMenuItem queriesUpdateMenu; // YD added
 	private JMenuItem significantDigitsMenu; // YD added
 	private JMenuItem enableUnitConversionsMenu;
+	private JMenuItem createFavoritesMenu;// YD Feb-2024
+	private JMenuItem loadFavoritesMenu;
+	private JMenuItem appendFavoritesMenu;// YD Feb-2024
+	private String filteringText; // YD added
+	private Enumeration<TreePath> expansionState;// YD added
+	private boolean AllCollapsed = false; // YD added
+	ArrayList<String> region_list = new ArrayList<String>();// YD added,Feb-2024
+	ArrayList<String> subregion_list = new ArrayList<String>();// YD added,Feb-2024
+	ArrayList<String> preset_region_list = new ArrayList<String>();// YD added,Feb-2024
+	private JComboBox<String> comboBoxPresetRegions; // YD added,Feb-2024
+	private String[] preset_choices; // YD added,Feb-2024
+	private JScrollPane listScrollRegions; // YD added,Feb-2024
+	private JScrollPane listScrollQueries; // YD added,Feb-2024
 	public static boolean queryTreeLocked = true; // YD added
 	public static boolean disable3Digits = false; // YD added
 	public static boolean enableUnitConversions = true;
@@ -416,6 +454,22 @@ public class DbViewer implements ActionListener, MenuAdder, BatchRunner {
 				.getSubMenuManager(InterfaceMain.ADVANCED_SUBMENU1_POS).addMenuItem(queriesRemoveMenu, 20);
 		queriesRemoveMenu.setEnabled(false);
 
+		loadFavoritesMenu = new JMenuItem("Load Favorite Queries File");
+		// createFavoritesMenu.addActionListener(this);
+		menuMan.getSubMenuManager(InterfaceMain.ADVANCED_MENU_POS)
+				.getSubMenuManager(InterfaceMain.ADVANCED_SUBMENU1_POS).addMenuItem(loadFavoritesMenu, 45);
+
+		// YD added,Feb-2024
+		createFavoritesMenu = new JMenuItem("Create Favorite Queries File");
+		// createFavoritesMenu.addActionListener(this);
+		menuMan.getSubMenuManager(InterfaceMain.ADVANCED_MENU_POS)
+				.getSubMenuManager(InterfaceMain.ADVANCED_SUBMENU1_POS).addMenuItem(createFavoritesMenu, 45);
+
+		appendFavoritesMenu = new JMenuItem("Append Favorite Queries File");
+		// appendFavoritesMenu.addActionListener(this);
+		menuMan.getSubMenuManager(InterfaceMain.ADVANCED_MENU_POS)
+				.getSubMenuManager(InterfaceMain.ADVANCED_SUBMENU1_POS).addMenuItem(appendFavoritesMenu, 48);
+
 	}
 
 	public void actionPerformed(ActionEvent e) {
@@ -615,6 +669,7 @@ public class DbViewer implements ActionListener, MenuAdder, BatchRunner {
 	}
 
 	protected Vector getRegions() {
+
 		Vector funcTemp = new Vector<String>(1, 0);
 		funcTemp.add("distinct-values");
 		Vector ret = new Vector();
@@ -640,6 +695,8 @@ public class DbViewer implements ActionListener, MenuAdder, BatchRunner {
 		return new QueryTreeModel(queriesDoc.getDocumentElement());
 	}
 
+	JTree queryList = null;
+
 	protected void createTableSelector() {
 		JPanel listPane = new JPanel();
 		JLabel listLabel;
@@ -648,6 +705,7 @@ public class DbViewer implements ActionListener, MenuAdder, BatchRunner {
 		scns = getScenarios();
 		regions = getRegions();
 		queries = getQueries();
+
 		scnList = new JList(scns);
 		scnList.setName(SCENARIO_LIST_NAME);
 		regionList = new JList(regions);
@@ -657,8 +715,15 @@ public class DbViewer implements ActionListener, MenuAdder, BatchRunner {
 		final Icon queryIcon = new ImageIcon(TabCloseIcon.class.getResource("icons/group-query.png"));
 		final Icon singleQueryIcon = new ImageIcon(TabCloseIcon.class.getResource("icons/single-query.png"));
 
+		// filter="Transport";
+		// filter=null;
+		// if(filter!=null) {
+		// queries=getFilteredQueries(queries,filter);
+
+		// }
+
 		// initialize the queries tree
-		final JTree queryList = new JTree(queries);
+		queryList = new JTree(queries);
 		queryList.setTransferHandler(new QueryTransferHandler(queriesDoc, implls));
 		queryList.setDragEnabled(true);
 		queryList.getSelectionModel()
@@ -667,6 +732,7 @@ public class DbViewer implements ActionListener, MenuAdder, BatchRunner {
 		for (int i = 0; i < queryList.getRowCount(); ++i) {
 			queryList.expandRow(i);
 		}
+
 		ToolTipManager.sharedInstance().registerComponent(queryList);
 		queryList.setCellRenderer(new DefaultTreeCellRenderer() {
 			public Component getTreeCellRendererComponent(JTree tree, Object value, boolean sel, boolean expanded,
@@ -702,21 +768,49 @@ public class DbViewer implements ActionListener, MenuAdder, BatchRunner {
 		listPane.setLayout(new BoxLayout(listPane, BoxLayout.Y_AXIS));
 		listLabel = new JLabel("Regions");
 		listPane.add(listLabel);
-		listScroll = new JScrollPane(regionList);
-		listScroll.setPreferredSize(new Dimension(150, 150));
-		listPane.add(listScroll);
+		listScrollRegions = new JScrollPane(regionList); // YD edited,Feb-2024
+		listScrollRegions.setPreferredSize(new Dimension(150, 100));// YD edited,2024 150 -> 110
+		listPane.add(listScrollRegions);
 		scenarioRegionSplit.setRightComponent(listPane);
 		allLists.add(scenarioRegionSplit);
 		// allLists.add(listPane);
 		// allLists.add(Box.createHorizontalStrut(10));
 
+		// YD added for Regions,Feb-2024
+		// this method should be re-factored later
+		loadRegionListToDropdown();
+		// System.out.println("check preset region choices
+		// first:"+preset_choices.toString());
+		
+		if(preset_choices!=null && preset_choices.length>0) {
+			JPanel presetRegionsPanel = new JPanel();
+			presetRegionsPanel.setLayout(new BoxLayout(presetRegionsPanel, BoxLayout.X_AXIS));
+			presetRegionsPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+			listLabel = new JLabel("Presets:");
+			comboBoxPresetRegions = new JComboBox<String>(preset_choices);// YD added,Feb-2024
+			comboBoxPresetRegions.setVisible(true);
+			comboBoxPresetRegions.setMaximumSize(comboBoxPresetRegions.getPreferredSize());
+			presetRegionsPanel.add(listLabel);
+			presetRegionsPanel.add(comboBoxPresetRegions);
+			listPane.add(presetRegionsPanel);
+			
+			// YD added this listener,Feb-2024
+			comboBoxPresetRegions.addActionListener(new ActionListener() {
+				public void actionPerformed(ActionEvent e) {
+					selectPresetRegions();
+				} // actionEvent end
+			}); // comboBoxPresetRegions listener ends
+		}
+
+		// YD added end
+
 		listPane = new JPanel();
 		listPane.setLayout(new BoxLayout(listPane, BoxLayout.Y_AXIS));
 		listLabel = new JLabel("Queries");
 		listPane.add(listLabel);
-		listScroll = new JScrollPane(queryList);
-		listScroll.setPreferredSize(new Dimension(150, 100));
-		listPane.add(listScroll);
+		listScrollQueries = new JScrollPane(queryList);
+		listScrollQueries.setPreferredSize(new Dimension(150, 100));
+		listPane.add(listScrollQueries);
 		JPanel buttonPanel = new JPanel();
 		buttonPanel.setLayout(new BoxLayout(buttonPanel, BoxLayout.X_AXIS));
 		buttonPanel.setAlignmentX(Component.LEFT_ALIGNMENT);// YD added this line to make the buttons align to the left
@@ -733,6 +827,8 @@ public class DbViewer implements ActionListener, MenuAdder, BatchRunner {
 		// TODO: better name
 		final JButton listCollapseButton = new JButton("Collapse"); // Dan
 		final JCheckBox doTotalCheckBox = new JCheckBox("Total"); // Dan
+		final JButton queryFilterButton = new JButton("Search"); // YD,2024
+		final JButton favoriteQueryButton = new JButton("Favorites"); // YD added,Feb-2024
 		// editButton.setEnabled(false);
 		queriesEditMenu.setEnabled(false); // YD added
 		runQueryButton.setEnabled(false);
@@ -745,6 +841,8 @@ public class DbViewer implements ActionListener, MenuAdder, BatchRunner {
 		// buttonPanel.add(Box.createHorizontalGlue()); //YD commented it out because we
 		// want "Collapse" button to be right next to "Total" checkbox
 		buttonPanel.add(listCollapseButton);// Dan
+		buttonPanel.add(queryFilterButton); // YD,2024
+		buttonPanel.add(favoriteQueryButton); // YD added,Feb-2024
 		// buttonPanel.add(getSingleQueryButton);
 		// buttonPanel.add(createButton);
 		// buttonPanel.add(removeButton);
@@ -774,6 +872,13 @@ public class DbViewer implements ActionListener, MenuAdder, BatchRunner {
 		if (regions.size() != 0) {
 			regionList.setSelectedIndex(0);
 		}
+
+		// YD added to save the initial tree expansion state, 2024
+		expansionState = saveExpansionState(queryList);
+		// TreePath treePath = expansionState.nextElement();
+		// while (expansionState.hasMoreElements()) {
+		// System.out.println(expansionState.nextElement());
+		// } //while loop end
 
 		queryList.addTreeSelectionListener(new TreeSelectionListener() {
 			public void valueChanged(TreeSelectionEvent e) {
@@ -1140,13 +1245,21 @@ public class DbViewer implements ActionListener, MenuAdder, BatchRunner {
 				QueryGroup root = (QueryGroup) model.getRoot();
 
 				ArrayList query_list = root.getQueryList();
+				System.out.println(query_list); // YD added
+				System.out.println("check allCollapsed now:" + AllCollapsed);
 
 				for (int i = 0; i < query_list.size(); i++) {
 
 					if (query_list.get(i) instanceof QueryGroup) {
 						QueryGroup group = (QueryGroup) query_list.get(i);
-						// System.out.println(group.getName());
-
+						System.out.println(group.getName()); // YD uncommented it
+						// YD added,2024
+						System.out.println(queryList.getRowCount());
+						ArrayList sub_query_list = group.getQueryList();
+						System.out.println(sub_query_list); // YD added
+						System.out.println(queryList.isCollapsed(1)); // YD added
+						System.out.println(queryList.isCollapsed(2)); // YD added
+						System.out.println(queryList.isCollapsed(3)); // YD added
 						TreePath path = getTreePathFromNode(group);
 
 						// This does not work corrected, but will collapse tree fully
@@ -1158,7 +1271,11 @@ public class DbViewer implements ActionListener, MenuAdder, BatchRunner {
 							queryList.collapseRow(1);
 						} else {
 							// eventually will want to make this expand to full
-						}
+							// YD added, 2024
+							// YD added, need to check if all groups are collapsed
+							System.out.println(queryList.getRowCount());
+							AllCollapsed = true;
+						} // inner if else loop end
 
 //						if (queryList.isCollapsed(1)) {
 //							queryList.expandPath(path);
@@ -1186,13 +1303,179 @@ public class DbViewer implements ActionListener, MenuAdder, BatchRunner {
 //						}
 //						
 
-					}
-				}
+					} // outer if loop end
+
+				} // outer for loop end
 				System.out.println("has changed?" + model.hasChanges());
 				model.fireTreeStructureChanged(e, null, null, null);
 				queryList.updateUI();
+
+				// YD added this to restore the initial expansion State
+				if (AllCollapsed) {
+					System.out.println("inside restore expansionState now."); // YD added
+					restoreExpansionState(expansionState, queryList);
+				}
+
+			} // actionPerformed end
+		}); // listener end
+
+		// YD added,2024
+		queryFilterButton.addActionListener(new ActionListener() { // YD,2024
+			public void actionPerformed(ActionEvent e) {
+
+				JPanel box = new JPanel();
+				box.setPreferredSize(new Dimension(400, 50));
+				box.setBackground(Color.GRAY);
+				box.setLayout(new BoxLayout(box, BoxLayout.Y_AXIS));
+				JLabel keyLabel = new JLabel("Please type the filtering text here:");
+				keyLabel.setFont(new Font("Arial", Font.BOLD, 16));
+				keyLabel.setForeground(Color.white);
+				JTextField field = new JTextField(20);
+				box.add(keyLabel);
+				box.add(field);
+
+				// int result = JOptionPane.showConfirmDialog(null, box, "Query Filter",
+				// JOptionPane.OK_CANCEL_OPTION,
+				// JOptionPane.PLAIN_MESSAGE);
+
+				String[] buttons = { "Apply", "Clear", "Cancel" };
+				int returnValue = JOptionPane.showOptionDialog(null, box, "Query Filter",
+						JOptionPane.YES_NO_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, null, buttons, buttons[0]);
+				// System.out.println(returnValue);
+				queries = getQueries();
+				switch (returnValue) {
+				case 0:
+					// YD added,2024
+					// Process the filter results...
+
+					filteringText = field.getText();
+					if (filteringText != null && filteringText.length() > 0) {
+						queries = getFilteredQueries(queries, filteringText);
+
+					}
+
+					// queryList.updateUI();
+					/*
+					 * QueryTreeModel model = (QueryTreeModel) queryList.getModel();
+					 * 
+					 * QueryGroup root = (QueryGroup) model.getRoot(); ArrayList query_list =
+					 * root.getQueryList();
+					 * 
+					 * for (int i = 0; i < query_list.size(); i++) {
+					 * 
+					 * if (query_list.get(i) instanceof QueryGroup) { QueryGroup group =
+					 * (QueryGroup) query_list.get(i);
+					 * 
+					 * System.out.println("this querygroup is:" + group);
+					 * 
+					 * ArrayList sub_query_list = group.getQueryList();
+					 * System.out.println("these are inside the sub_query_list:");
+					 * System.out.println(sub_query_list.toString());
+					 * System.out.println("the size for the sub_query_list is:" +
+					 * sub_query_list.size()); int leafCountLevel1 = 0; for (int j = 0; j <
+					 * sub_query_list.size(); j++) { if (sub_query_list.get(j) instanceof
+					 * QueryGroup) { QueryGroup subGroup = (QueryGroup) sub_query_list.get(j);
+					 * System.out.println("the subGroup name is:" + subGroup.getName()); boolean
+					 * noMoreGroupInside = checkNoMoreQueryGroupInside(subGroup);
+					 * System.out.println( "check if more query group inside this subGroup:" +
+					 * noMoreGroupInside); if (noMoreGroupInside) { // when all leaves inside
+					 * collapseGroupWhenNotContainKeyWords(queryList, subGroup, filteringText); }
+					 * else { // when 'noMoreGroupInside' == false ArrayList sub_2_query_list =
+					 * subGroup.getQueryList(); for (int j2 = 0; j2 < sub_2_query_list.size(); j2++)
+					 * { if (sub_2_query_list.get(j2) instanceof QueryGroup) { QueryGroup sub2Group
+					 * = (QueryGroup) sub_2_query_list.get(j2);
+					 * System.out.println("the sub2Group name is:" + sub2Group.getName()); boolean
+					 * noMoreGroupInside2 = checkNoMoreQueryGroupInside(sub2Group);
+					 * System.out.println( "check if more query group inside this level 2 subGroup:"
+					 * + noMoreGroupInside2); if (noMoreGroupInside2) {
+					 * collapseGroupWhenNotContainKeyWords(queryList, sub2Group, filteringText); }
+					 * else { // when 'noMoreGroupInside2' ==false ArrayList sub_3_query_list =
+					 * sub2Group.getQueryList(); for (int j3 = 0; j3 < sub_3_query_list.size();
+					 * j3++) { if (sub_3_query_list.get(j3) instanceof QueryGroup) { QueryGroup
+					 * sub3Group = (QueryGroup) sub_3_query_list .get(j3); System.out.println(
+					 * "the sub3Group name is:" + sub3Group.getName()); boolean noMoreGroupInside3 =
+					 * checkNoMoreQueryGroupInside( sub3Group); if ((noMoreGroupInside3)) {
+					 * collapseGroupWhenNotContainKeyWords(queryList, sub3Group, filteringText); } }
+					 * // if 'sub_3_query_list.get()' a query group end } // for 'sub_3_query_list'
+					 * loop end } // if else 'noMoreGroupInside2' end } // if 'sub_2_query_list'
+					 * loop end } // for 'sub_2_query_list' loop end } // if else
+					 * 'noMoreGroupInside' loop end } else if (sub_query_list.get(j) instanceof
+					 * QueryGenerator) { QueryGenerator queryLeaf = (QueryGenerator)
+					 * sub_query_list.get(j); System.out.println("found a query leaf at level 1:" +
+					 * sub_query_list.get(j)); boolean leafContainKeyWords =
+					 * queryLeaf.toString().contains(filteringText);
+					 * System.out.println("this leaf contains my keywords:" + leafContainKeyWords);
+					 * if (!leafContainKeyWords) { leafCountLevel1 = leafCountLevel1 + 1; // need to
+					 * figure out how to set a leaf invisible }
+					 * 
+					 * } // inner if loop for 'sub_query_list' end
+					 * 
+					 * } // for loop for 'sub_query_list' end
+					 * 
+					 * // if everything under this group are leaves and none of them contain the key
+					 * // words if (leafCountLevel1 == sub_query_list.size()) { System.out.println(
+					 * "this group only have leaves that don't contain key words:" +
+					 * group.getName()); TreePath groupTreePath = getFullTreePath(queryList,
+					 * group.getName()); queryList.collapsePath(groupTreePath); }
+					 * 
+					 * } else if (query_list.get(i) instanceof QueryGenerator) {
+					 * System.out.println("found a query leaf at root:" + query_list.get(i));
+					 * QueryGenerator queryLeafAtRoot = (QueryGenerator) query_list.get(i); boolean
+					 * leafAtRootContainKeyWords =
+					 * queryLeafAtRoot.toString().contains(filteringText);
+					 * System.out.println("this leaf contains my keywords:" +
+					 * leafAtRootContainKeyWords); if (!leafAtRootContainKeyWords) { // need to
+					 * figure out how to set a leaf invisible
+					 * 
+					 * } } // outer if else loop for 'query_list.get(i)' end } // for loop for
+					 * 'query_list' end
+					 */
+
+					break;
+				case 2:
+				case -1:
+					return;
+				// case 'OK_OPTION' end here
+				} // switch 'result' end
+				queryList.setModel(queries);
+				queryList.setSelectionRow(0);
+				for (int i = 0; i < queryList.getRowCount(); ++i) {
+					queryList.expandRow(i);
+				}
+			} // actionEvent end
+		}); // queryFilterButton listener ends
+
+		
+
+		// YD added this listener,Feb-2024
+		favoriteQueryButton.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				selectFavoriteQueries(queryList);
 			}
-		});
+		}); // favoriteQueryButton listener ends
+
+		// YD added this listener,Feb-2024
+		createFavoritesMenu.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				createFavoriteQueriesFile(queryList);
+
+			}
+		});// createFavoritesMenu listener ends
+
+		loadFavoritesMenu.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				loadFavoriteQueriesFile();
+
+			}
+		});// loadFavoritesMenu listener ends
+
+		// YD added this listener,Mar-2024
+		appendFavoritesMenu.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				appendFavoriteQueries(queryList);
+
+			}
+		});// appendFavoritesMenu listener ends
 
 		JFrame parentFrame = InterfaceMain.getInstance().getFrame();
 		Container contentPane = parentFrame.getContentPane();
@@ -1203,6 +1486,456 @@ public class DbViewer implements ActionListener, MenuAdder, BatchRunner {
 
 		parentFrame.setVisible(true);
 	}
+
+	private QueryTreeModel getFilteredQueries(QueryTreeModel model, String query) {
+
+		QueryGroup root = (QueryGroup) model.getRoot();
+		ArrayList query_list = root.getQueryList();
+
+		ArrayList toRemove = new ArrayList<>();
+
+		for (int i = 0; i < query_list.size(); i++) {
+			if (query_list.get(i) instanceof QueryGroup) {
+				QueryGroup group = (QueryGroup) query_list.get(i);
+				toRemove.addAll(getMatchingNodes(group, query));
+			}
+		}
+
+		for (int i = 0; i < toRemove.size(); i++) {
+			// boolean removed=query_list.remove(toRemove.get(i));
+			QueryGenerator qg = (QueryGenerator) toRemove.get(i);
+			Node myNode = qg.getMyNode();
+			Node result = qg.getMyNode().getParentNode().removeChild(myNode);
+			// System.out.println("HI "+result);
+		}
+
+		return model;
+	}
+
+	private ArrayList getMatchingNodes(QueryGroup groupTop, String query) {
+		ArrayList query_list = groupTop.getQueryList();
+		ArrayList toRemove = new ArrayList();
+		for (int i = 0; i < query_list.size(); i++) {
+			if (query_list.get(i) instanceof QueryGroup) {
+				QueryGroup group = (QueryGroup) query_list.get(i);
+				getMatchingNodes(group, query);
+			} else {
+				if (query_list.get(i).toString().toLowerCase().contains(query.toLowerCase())) {
+					// System.out.println("found a match: " + query_list.get(i).toString());
+				} else {
+					QueryGenerator queryLeaf = (QueryGenerator) query_list.get(i);
+					toRemove.add(query_list.get(i));
+				}
+			}
+		}
+		for (int i = 0; i < toRemove.size(); i++) {
+			boolean gone = query_list.remove(toRemove.get(i));
+
+		}
+		return toRemove;
+	}
+
+	// YD added,2024
+	public static Enumeration<TreePath> saveExpansionState(JTree tree) {
+		return tree.getExpandedDescendants(new TreePath(tree.getModel().getRoot()));
+	}
+
+	// YD added,2024
+	public void restoreExpansionState(Enumeration enumeration, JTree tree) {
+		if (enumeration != null) {
+			while (enumeration.hasMoreElements()) {
+				TreePath treePath = (TreePath) enumeration.nextElement();
+				tree.expandPath(treePath);
+			}
+		}
+	}
+
+	// YD added,2024
+	private void collapseGroupWhenNotContainKeyWords(JTree myTree, QueryGroup mySubGroup, String keyWords) {
+		ArrayList leaf_inside = mySubGroup.getQueryList();
+		boolean containKeyWords = leaf_inside.toString().contains(filteringText);
+		if (!containKeyWords) {
+			TreePath myTreePath = getTreePathFromNode(mySubGroup);
+			TreePath myFullTreePath = getFullTreePath(myTree, mySubGroup.getName());
+			myTree.collapsePath(myFullTreePath);
+		} else {
+			int myIndex = leaf_inside.toString().indexOf(filteringText);
+			// get index, but don't know how to set others invisible
+		} // inner if else loop end
+	}
+
+	// YD added,2024
+	// this method is to get the full tree path for a query group name,YD added
+	private TreePath getFullTreePath(JTree tree, String groupName) {
+		Enumeration<TreePath> allPath = tree.getExpandedDescendants(new TreePath(tree.getModel().getRoot()));
+		TreePath myTreePath = null;
+		if (allPath != null) {
+			while (allPath.hasMoreElements()) {
+				TreePath treePath = (TreePath) allPath.nextElement();
+				String treePathStr = treePath.toString();
+				String[] splitsTreePath = treePathStr.replace("[", "").replace("]", "").split(",");
+				String currentGroup = splitsTreePath[splitsTreePath.length - 1];
+				// handle when "," within groupName such as 'Markets, prices, and costs' first
+				boolean groupNameHasComma = groupName.contains(",");
+				if (groupNameHasComma && treePath.toString().contains(groupName)) {
+					myTreePath = treePath;
+				} else if (currentGroup.trim().equalsIgnoreCase(groupName)) {
+					myTreePath = treePath;
+				}
+				if (myTreePath != null) {
+					break;
+				}
+			}
+		}
+		return (myTreePath);
+	}
+
+	// this method is to get the full tree path for a query group name
+	// considering that the same query group name can appear multiple times in the
+	// same tree
+	// but at different locations,YD added
+	private ArrayList<TreePath> getFullTreePath2(JTree tree, String groupName, int pathCount) {
+		Enumeration<TreePath> allPath = tree.getExpandedDescendants(new TreePath(tree.getModel().getRoot()));
+		ArrayList<TreePath> myTreePath = new ArrayList<TreePath>();
+		if (allPath != null) {
+			while (allPath.hasMoreElements()) {
+				TreePath treePath = (TreePath) allPath.nextElement();
+				String treePathStr = treePath.toString();
+				String[] splitsTreePath = treePathStr.replace("[", "").replace("]", "").split(",");
+				String currentGroup = splitsTreePath[splitsTreePath.length - 1];
+				int checkPathCount = treePath.getPathCount();
+				// handle when "," within groupName such as 'Markets, prices, and costs' first
+				boolean groupNameHasComma = groupName.contains(",");
+				if (groupNameHasComma && treePath.toString().contains(groupName)) {
+					myTreePath.add(treePath);
+				} else if (checkPathCount == pathCount & currentGroup.trim().equals(groupName)) {
+					myTreePath.add(treePath);
+				}
+			}
+		}
+		return (myTreePath);
+	}
+
+	// YD added,2024
+	// this method is to check if there are more levels of query group under a query
+	// group
+	private boolean checkNoMoreQueryGroupInside(QueryGroup mySubGroup) {
+		boolean noMoreGroup = true;
+		ArrayList group_inside = mySubGroup.getQueryList();
+		for (int j = 0; j < group_inside.size(); j++) {
+			if (group_inside.get(j) instanceof QueryGroup) {
+				noMoreGroup = false;
+				break;
+			}
+		} // for loop end
+		return (noMoreGroup);
+	}
+
+	// YD added, Feb-2024
+	// this method is to load the preset region list from the control file to the
+	// dropdown menu
+	public void loadRegionListToDropdown() {
+		// String preset_region_list_filename =
+		// "C:/Users/yxu01/glimpse/src/glimpse/ORDModelInterface/exe/"+"preset_region_list.txt";
+		
+		if(InterfaceMain.presetRegionListLocation==null || InterfaceMain.presetRegionListLocation.trim().length()==0) {
+			System.out.println("No regions list specified, skipping.");
+			return;
+		}
+		
+		String preset_region_list_filename = InterfaceMain.presetRegionListLocation;
+
+		
+		// System.out.println(
+		// "inside loadRegionListToDropdown now,check the preset region filename: " +
+		// preset_region_list_filename);
+
+		// preset region list
+		try {
+			ArrayList<String> contents = getStringArrayFromFile(preset_region_list_filename, "#");
+
+			for (int i = 0; i < contents.size(); i++) {
+				String line = contents.get(i);
+				if (line.length() > 0) {
+					preset_region_list.add(line);
+				}
+			}
+		} catch (Exception e) {
+			/*
+			 * String[] strs = {
+			 * "North America:USA,Canada,Mexico,Central America and Caribbean",
+			 * "South America:Argentina,Brazil,Colombia,South America_Northern,South America_Southern"
+			 * , "Africa:Africa_Northern,Africa_Southern,Africa_Eastern,Africa_Western",
+			 * "EU:EU-15,EU-12",
+			 * "Europe:EU-15,EU-12,Europe_Eastern,European Free Trade Association,Europe_Non_EGU"
+			 * ,
+			 * "Asia:Japan,Central Asia,Russia,China,Middle East,Indonesia,Pakistan,South Asia,Southeast Asia,Taiwan,South Korea,India"
+			 * , "East Asia:Japan,China,Taiwan,South Korea",
+			 * "Southeast Asia:Indonesia,Southeast Asia",
+			 * "South Asia:Pakistan,India,South Asia", "West Asia:Middle East" }; for
+			 * (String s : strs) preset_region_list.add(s);
+			 */
+
+			System.out.println("Unable to load region list: " + e.toString());
+			//JOptionPane.showMessageDialog(null, "Unable to load regions file, please see console for error",
+			//		"Error Saving File", JOptionPane.ERROR_MESSAGE);
+
+		} // try-catch-end
+
+		preset_choices = new String[preset_region_list.size() + 1];
+		preset_choices[0] = "Select (optional)";
+		for (int i = 0; i < preset_region_list.size(); i++) {
+			String s = preset_region_list.get(i);
+			int index_of_semicolon = s.indexOf(":");
+			if (index_of_semicolon > -1) {
+				s = s.substring(0, index_of_semicolon);
+				preset_choices[i + 1] = s;
+			}
+		}
+
+	} // "loadRegionListToDropdown()" method end
+
+	// YD added this method,Feb-2024
+	public void selectFavoriteQueries(JTree queryList) {
+
+		ArrayList<String> favorite_query_list = new ArrayList<String>();// YD added,Feb-2024
+		ArrayList<TreePath> favorite_query_treePath = new ArrayList<TreePath>();// YD added,Feb-2024
+		ArrayList<String> favorite_query_names = new ArrayList<String>();// YD added,Feb-2024
+
+		String favorite_query_filename = InterfaceMain.favoriteQueriesFileLocation;
+		// preset region list
+		try {
+			ArrayList<String> contents = getStringArrayFromFile(favorite_query_filename, "#");
+
+			for (int i = 0; i < contents.size(); i++) {
+				String line = contents.get(i);
+				if (line.length() > 0) {
+					favorite_query_list.add(line);
+				}
+			}
+		} catch (Exception e) {
+			System.out.println("Could not read favorite queries file: " + e.toString());
+			JOptionPane.showMessageDialog(null, "Unable to load favorites file, please see console for error",
+					"Error Saving File", JOptionPane.ERROR_MESSAGE);
+			return;
+		} // try-catch-end
+
+		for (int i = 0; i < favorite_query_list.size(); i++) {
+			String line = favorite_query_list.get(i);
+			TreePath myPath = getTreePathForEachLine(queryList, line);
+			if (myPath != null) {
+				favorite_query_treePath.add(myPath);
+				// System.out.println("this is the treePath I found for this line: " + myPath);
+			} else {
+				System.out.println("Unable to find path for " + myPath);
+			}
+			String[] splitLine = line.split(">");
+			String favoriteQueryName = splitLine[splitLine.length - 1];
+			favorite_query_names.add(favoriteQueryName);
+		}
+
+		// TreePath[] arr = new TreePath[favorite_query_treePath.size()];
+		// arr = favorite_query_treePath.toArray(arr);
+		// queryList.setSelectionPaths(arr);
+
+		QueryTreeModel model = (QueryTreeModel) queryList.getModel();
+
+		ArrayList<String> notFound = new ArrayList<>();
+
+		QueryGroup root = (QueryGroup) model.getRoot();
+		ArrayList query_list = root.getQueryList();
+		int[] rowsToSelect = new int[favorite_query_list.size()];
+		for (int n = 0; n < favorite_query_list.size(); n++) {
+			TreePath treePath_to_find = favorite_query_treePath.get(n);
+			String leaf_name_to_find = favorite_query_names.get(n);
+			int rowNum = getRowNumberForLeaf(queryList, treePath_to_find, leaf_name_to_find);
+			rowsToSelect[n] = rowNum;
+			if (rowNum == -1) {
+				notFound.add(leaf_name_to_find);
+
+			}
+		} // for n< favorite_query_list end
+
+		// if none of rows were found, no reason to update selection
+		if (notFound.size() != rowsToSelect.length) {
+			queryList.clearSelection();
+			queryList.setSelectionRows(rowsToSelect);
+
+			// scroll to the last found one of my favorite query
+			for (int i = 0; i < rowsToSelect.length; i++) {
+				if (rowsToSelect[i] != -1) {
+					java.awt.Rectangle bounds = queryList.getRowBounds(rowsToSelect[i]);
+					listScrollQueries.getVerticalScrollBar().setValue((int) bounds.getMinY());
+				}
+			}
+		}
+		if (notFound.size() > 0) {
+			String errorMessage = "The following queries were not found:\n\n";
+			for (String s : notFound) {
+				errorMessage += s + "\n";
+			}
+			JOptionPane.showMessageDialog(null, errorMessage);
+		}
+
+	}// selectFavoriteQueries method end
+
+	// YD added,Feb-2024, this method is adopted from "GLIMPSEFiles.java"
+	public ArrayList<String> getStringArrayFromFile(String filename, String commentChar) throws IOException {
+		ArrayList<String> arrayList = new ArrayList<String>();
+
+		BufferedReader br = new BufferedReader(new FileReader(filename));
+		for (String line; (line = br.readLine()) != null;) {
+			line = line.trim();
+			if (line.length() > 0) {
+				if (commentChar != null && !line.startsWith(commentChar)) {
+					arrayList.add(line);
+				}
+			}
+		}
+		br.close();
+
+		return arrayList;
+	}
+
+	// YD added,Feb-2024, this method is adopted from "GLIMPSEUtils.java"
+	public ArrayList<String> createArrayListFromString(String line, String delim) {
+		ArrayList<String> linesList = new ArrayList<String>();
+		String[] lines = splitString(line, delim);
+		for (int i = 0; i < lines.length; i++) {
+			lines[i] = lines[i];// + vars.getEol();
+			linesList.add(lines[i]);
+		}
+		return linesList;
+	}
+
+	// YD added,Feb-2024, this method is adopted from "GLIMPSEUtils.java"
+	public String[] splitString(String str, String delim) {
+		String s[] = str.split(delim);
+		return s;
+	}
+
+	// YD added,Feb-2024, this method is to find out what sub-regions should be
+	// selected in regionList
+	// then set those sub-regions selected in the regionList
+	public void selectPresetRegions() {
+		String selection = (String) comboBoxPresetRegions.getSelectedItem();
+		int idx = comboBoxPresetRegions.getSelectedIndex();
+		System.out.println("this is my selection: " + selection);
+		if (idx > 0) {// YD added,Apr-2024
+			for (int i = 0; i < preset_region_list.size(); i++) {
+				String line = preset_region_list.get(i);
+				int index = line.indexOf(":");
+				if (index > 0) {
+					String name = line.substring(0, index).toLowerCase();
+					if (selection.toLowerCase().equals(name)) {
+						String[] subregions = splitString(line.substring(index + 1), ",");
+						System.out.println("number of items in this subregion is: " + subregions.length);
+						selectItemsFromRegionList(subregions);
+					}
+				}
+			} // for loop end
+		} else { // YD added,Apr-2024
+			regionList.setSelectedIndex(0);
+		} // outer if else loop end
+	}// selectPresetRegions method end
+
+	// YD added,Feb-2024, this method is to select those sub-regions from the above
+	// regionList
+	public void selectItemsFromRegionList(String[] subregions) {
+
+		ArrayList<Integer> regionIndices = new ArrayList<Integer>();
+
+		for (int i = 0; i < subregions.length; i++) {
+
+			for (int j = 0; j < regions.size(); j++) {
+
+				String st_str = subregions[i].trim();
+				String regionName = regions.get(j).toString();
+				if (st_str.equals(regionName)) {
+					regionIndices.add(j);
+				}
+			}
+		}
+
+		int[] regionIndicesArray = new int[regionIndices.size()];
+		for (int n = 0; n < regionIndices.size(); n++) {
+			regionIndicesArray[n] = regionIndices.get(n);
+		}
+		// set selected sub-regions in the regionList
+		if (regionIndicesArray.length > 0) {
+			regionList.setSelectedIndices(regionIndicesArray);
+			// scroll to the selected items
+			java.awt.Rectangle bounds = regionList.getCellBounds(regionIndicesArray[0],
+					regionIndicesArray[regionIndices.size() - 1]);
+			listScrollRegions.getVerticalScrollBar().setValue((int) bounds.getMinY());
+		}
+	} // selectItemsFromRegionList method end
+
+	// YD added,Feb-2024, this method is to get the row number for a leaf under a
+	// query group
+	private int getRowNumberForLeaf(JTree myTree, TreePath myPath, String leafName) {
+		int rowNumForLeaf = -1;
+		int rowNumForSubgroup = myTree.getRowForPath(myPath);
+		QueryGroup myChildGroup = (QueryGroup) myPath.getLastPathComponent();
+		ArrayList leaves = myChildGroup.getQueryList();
+		for (int m = 0; m < leaves.size(); m++) {
+			// if (leafName.contains(leaves.get(m).toString())) {
+			if (leafName.replace("\"", "").trim().compareToIgnoreCase(leaves.get(m).toString().trim()) == 0) {
+				// System.out.println("found my favorite query name here:" +
+				// leaves.get(m).toString());
+				int myIndex = ((TreeModel) myTree.getModel()).getIndexOfChild(myChildGroup, leaves.get(m));
+				rowNumForLeaf = rowNumForSubgroup + myIndex + 1;
+				break;
+			}
+		} // for loop end
+		return rowNumForLeaf;
+	} // get RowNumberForLeaf method end
+
+	// YD added,Feb-2024, this method is to get the full tree path for each line in
+	// the favorite query list
+	private TreePath getTreePathForEachLine(JTree myTree, String myLine) {
+		TreePath theFullPath = null;
+		String[] splitLine = myLine.split(">");
+		String[] splitLineForGroups = Arrays.copyOfRange(splitLine, 0, splitLine.length - 1);
+		String child_group_to_find = splitLine[splitLine.length - 2]; // get the last child group before the leaf
+		String group_to_find_trim = child_group_to_find.substring(1, child_group_to_find.length() - 1); // remove double
+																										// quotes
+		int pathCount = splitLine.length - 1;
+		ArrayList<TreePath> allPaths = getFullTreePath2(myTree, group_to_find_trim, pathCount);
+		if (allPaths.size() == 1) {
+			theFullPath = allPaths.get(0);
+		} else if ((allPaths.size() > 1)) { // when queryGroup appears multiple times in a tree
+			for (int i = 0; i < allPaths.size(); i++) {
+				TreePath testPath = allPaths.get(i);
+				boolean checkMatchAll = matchsAllGroups(testPath, splitLineForGroups);
+				if (checkMatchAll) {
+					theFullPath = allPaths.get(i);
+					// System.out.println("this is the treePath that matches :" + theFullPath);
+				}
+
+			}
+		}
+		return theFullPath;
+	} // getTreePathForEachLine method end
+
+	// YD edits,Feb-2024, this method is to check if a string contains all elements
+	// of a string array
+	public boolean matchsAllGroups(TreePath myPath, String[] allStrs) {
+		boolean matchsAll = true;
+		for (int i = 0; i < allStrs.length; i++) {
+			// need to remove the double quotes for each group
+			String groupName = allStrs[i];
+			String groupQuoteRemoved = groupName.substring(1, groupName.length() - 1);
+			String myPathStr = (String) myPath.getPathComponent(i).toString();
+			if (!myPathStr.equals(groupQuoteRemoved)) {
+				matchsAll = false;
+				break;
+			}
+		}
+		return matchsAll;
+	}
+
+	// YD edits end
 
 	public TreePath getTreePathFromNode(TreeNode treeNode) {
 		List<Object> nodes = new ArrayList<Object>();
@@ -1958,6 +2691,205 @@ public class DbViewer implements ActionListener, MenuAdder, BatchRunner {
 			pce.printStackTrace();
 		}
 	}
+
+	// YD added to match filtering strings, 2024
+	private boolean matchesFilterInGroup(ArrayList myList) {
+		return myList.toString().contains(filteringText);
+	}
+
+	// YD added to match tree node children with filtering strings, 2024
+	private boolean containsMatchingChild(QueryGroup group) {
+		int nChildren = group.getChildCount();
+		boolean isMatched = false;
+
+		return isMatched;
+	}
+
+	public void loadFavoriteQueriesFile() {
+		String PathToUse = null;
+		if (InterfaceMain.favoriteQueriesFileLocation != null) {
+			File f = new File(InterfaceMain.favoriteQueriesFileLocation);
+			if (f.exists()) {
+				PathToUse = f.getParent();
+			}
+		}
+
+		JFileChooser fileChooser = new JFileChooser();
+		fileChooser.setDialogTitle("Select a query file to load.");
+		if (PathToUse != null) {
+			fileChooser.setCurrentDirectory(new File(PathToUse));
+		}
+		int returnVal = fileChooser.showOpenDialog(null);
+
+		if (returnVal == JFileChooser.APPROVE_OPTION) {
+			InterfaceMain.favoriteQueriesFileLocation = fileChooser.getSelectedFile().getAbsolutePath();
+			String messageFileSaved = fileChooser.getSelectedFile().toString()
+					+ " has been loaded.\n\n Would you like to apply it now?";
+			int answer = JOptionPane.showConfirmDialog(null, messageFileSaved, "Switch?", JOptionPane.YES_NO_OPTION);
+			if (answer == JOptionPane.YES_OPTION) {
+				selectFavoriteQueries(queryList);
+			}
+		}
+	}
+
+	// YD added to create a file that contains the selected queries as user's
+	// favorite queries, Feb-2024
+	public void createFavoriteQueriesFile(JTree myTree) {
+		TreePath[] selectedTreePath = myTree.getSelectionPaths();
+		// boolean append = false;
+		// String fileName = "./exe/favorite_queries_list.txt";
+		// File favoritesFile = new File(fileName);
+		// int overWriteAnswer = -1;
+		// if (favoritesFile.exists()) {
+		// String messageOverwriteFile = "this file " + fileName + " exists. Overwrite
+		// it?";
+		// overWriteAnswer = JOptionPane.showConfirmDialog(null, messageOverwriteFile,
+		// null,
+		// JOptionPane.OK_CANCEL_OPTION);
+		// //System.out.println("my overWrite answer is:" + overWriteAnswer);
+		// }
+		if (selectedTreePath.length == 0) {
+			JOptionPane.showMessageDialog(null, "Please select at least one query to save.");
+			return;
+		}
+
+		boolean hasLeaf = false;
+		for (TreePath tp : selectedTreePath) {
+			if (tp.getLastPathComponent() instanceof QueryGenerator)
+				hasLeaf = true;
+		}
+		if (!hasLeaf) {
+			JOptionPane.showMessageDialog(null, "Please select at least one query to save.");
+			return;
+		}
+
+		String PathToUse = null;
+		if (InterfaceMain.favoriteQueriesFileLocation != null) {
+			File f = new File(InterfaceMain.favoriteQueriesFileLocation);
+			if (f.exists()) {
+				PathToUse = f.getParent();
+			}
+		}
+
+		JFileChooser fileChooser = new JFileChooser();
+		fileChooser.setDialogTitle("Specify a favorite queries file to save");
+		if (PathToUse != null) {
+			fileChooser.setCurrentDirectory(new File(PathToUse));
+		}
+		int userSelection = fileChooser.showSaveDialog(null);
+
+		if (userSelection == JFileChooser.APPROVE_OPTION) {
+			try {
+				BufferedWriter writer = new BufferedWriter(
+						new OutputStreamWriter(new FileOutputStream(fileChooser.getSelectedFile(), false)));
+				String convertedLine = "";
+				for (int i = 0; i < selectedTreePath.length; i++) {
+
+					TreePath treePathNow = selectedTreePath[i];
+					if (treePathNow.getLastPathComponent() instanceof QueryGenerator) {
+						int treePathCount = treePathNow.getPathCount();
+						String pathStr = selectedTreePath[i].toString();
+						String lineStr = pathStr.substring(1, pathStr.length() - 1);// remove the square brackets
+						int commaCount = countCommaInPath(lineStr);
+						if (commaCount > treePathCount - 1) { // there are commas inside queryGroup
+							convertedLine = convertPathWithCommaToLine(treePathNow);
+						} else {
+							convertedLine = convertPathToLine(lineStr);
+						}
+					}
+					// System.out.println("converted line is:" + convertedLine);
+					writer.write(convertedLine);
+					writer.newLine();
+				}
+				writer.close();
+				String messageFileSaved = fileChooser.getSelectedFile().toString()
+						+ " has been saved.\n\n Would you like to make this the active favorites file?";
+				int answer = JOptionPane.showConfirmDialog(null, messageFileSaved, "Switch?",
+						JOptionPane.YES_NO_OPTION);
+				if (answer == JOptionPane.YES_OPTION) {
+					InterfaceMain.favoriteQueriesFileLocation = fileChooser.getSelectedFile().getAbsolutePath();
+				}
+			} catch (IOException e) {
+				System.out.println("Could not save file: " + e.toString());
+				JOptionPane.showMessageDialog(null, "Unable to save file, please see console for error",
+						"Error Saving File", JOptionPane.ERROR_MESSAGE);
+			}
+
+		}
+
+	}// createFavoriteQueriesFile method end
+
+	// YD added to append the selected queries to a file that contains user's
+	// favorite queries, Mar-2024
+	public void appendFavoriteQueries(JTree myTree) {
+		TreePath[] selectedTreePath = myTree.getSelectionPaths();
+		// boolean append = true;
+		// String fileName = "./exe/favorite_queries_list.txt";
+		// File favoritesFile = new File(fileName);
+		File favoritesFile = new File(InterfaceMain.favoriteQueriesFileLocation);
+		if (favoritesFile.exists()) {
+			try {
+				BufferedWriter writer = new BufferedWriter(
+						new OutputStreamWriter(new FileOutputStream(favoritesFile, true)));
+				for (int i = 0; i < selectedTreePath.length; i++) {
+					TreePath treePathNow = selectedTreePath[i];
+					int treePathCount = treePathNow.getPathCount();
+					String pathStr = selectedTreePath[i].toString();
+					String lineStr = pathStr.substring(1, pathStr.length() - 1);// remove the square brackets
+					int commaCount = countCommaInPath(lineStr);
+					String convertedLine = "";
+					if (commaCount > treePathCount - 1) { // there are commas inside queryGroup
+						convertedLine = convertPathWithCommaToLine(treePathNow);
+					} else {
+						convertedLine = convertPathToLine(lineStr);
+					}
+					// System.out.println("converted line is:" + convertedLine);
+					writer.write(convertedLine);
+					writer.newLine();
+				}
+				writer.close();
+				String messageQueriesAppended = "The selected queries have been appended to "
+						+ InterfaceMain.favoriteQueriesFileLocation;
+				JOptionPane.showMessageDialog(null, messageQueriesAppended);
+			} catch (IOException e) {
+				System.out.println("Could not append to favorite queries: " + e.toString());
+			} // try and catch loop end
+		} else {
+			String messageFileNotFound = "Favorite queries list file " + InterfaceMain.favoriteQueriesFileLocation
+					+ " could not be found to be appended to.\n" + "Please load or create a file first.";
+			JOptionPane.showMessageDialog(null, messageFileNotFound);
+		} // if else loop end
+	}// appendFavoriteQueries method end
+
+	// YD added this method to convert the path string into each line with
+	// ">",Feb-2024
+	public static String convertPathToLine(String pathStr) {
+		return Arrays.stream(pathStr.trim().split("\\s*,\\s*")).map(s -> s.isEmpty() ? s : '"' + s + '"')
+				.collect(Collectors.joining(">"));
+	}
+
+	// YD added this method to count number of commas in a TreePath,Mar-2024
+	public int countCommaInPath(String pathStr) {
+		int numCommas = pathStr.length() - pathStr.replace(",", "").length();
+		return (numCommas);
+	}
+
+	// YD added this method to count number of commas in a TreePath,Mar-2024
+	public String convertPathWithCommaToLine(TreePath treePathNow) {
+		int treePathCount = treePathNow.getPathCount();
+		String myStr = "";
+		for (int i = 0; i < treePathCount - 1; i++) {
+			QueryGroup queryGroupNow = (QueryGroup) treePathNow.getPathComponent(i);
+			String strNow = "\"" + queryGroupNow + "\"" + ">";
+			myStr = myStr + strNow;
+		}
+		Object queryName = treePathNow.getPathComponent(treePathCount - 1);
+		String lastPart = "\"" + queryName.toString() + "\"";
+		String myLine = myStr + lastPart;
+		return (myLine);
+	}
+
+	// YD edits end here
 
 	public static BaseTableModel getTableModelFromComponent(java.awt.Component comp) {
 		// Dan: This method seems to be very problematic, but in most instances, maybe

@@ -1,3 +1,35 @@
+/*
+* LEGAL NOTICE
+* This computer software was prepared by US EPA.
+* THE GOVERNMENT MAKES NO WARRANTY, EXPRESS OR IMPLIED, OR ASSUMES ANY
+* LIABILITY FOR THE USE OF THIS SOFTWARE. This notice including this
+* sentence must appear on any copies of this computer software.
+* 
+* EXPORT CONTROL
+* User agrees that the Software will not be shipped, transferred or
+* exported into any country or used in any manner prohibited by the
+* United States Export Administration Act or any other applicable
+* export laws, restrictions or regulations (collectively the "Export Laws").
+* Export of the Software may require some form of license or other
+* authority from the U.S. Government, and failure to obtain such
+* export control license may result in criminal liability under
+* U.S. laws. In addition, if the Software is identified as export controlled
+* items under the Export Laws, User represents and warrants that User
+* is not a citizen, or otherwise located within, an embargoed nation
+* (including without limitation Iran, Syria, Sudan, Cuba, and North Korea)
+*     and that User is not otherwise prohibited
+* under the Export Laws from receiving the Software.
+*
+* SUPPORT
+* For the GLIMPSE project, GCAM development, data processing, and support for 
+* policy implementations has been led by Dr. Steven J. Smith of PNNL, via Interagency 
+* Agreements 89-92423101 and 89-92549601. Contributors * from PNNL include 
+* Maridee Weber, Catherine Ledna, Gokul Iyer, Page Kyle, Marshall Wise, Matthew 
+* Binsted, and Pralit Patel. Coding contributions have also been made by Aaron 
+* Parks and Yadong Xu of ARA through the EPA’s Environmental Modeling and 
+* Visualization Laboratory contract. 
+* 
+*/
 package filter;
 
 import java.awt.BorderLayout;
@@ -52,10 +84,10 @@ public class FilteredTable_orig {
 	private String[] tableColumnData;
 	private Thumbnail tn;
 	private boolean debug = false;
-	private int sigfigs=3;
+	private int sigfigs = 3;
 
-	public FilteredTable_orig(Map<String, String> sel, String chartName, String[] unit, String path, final JTable jTable,
-			JSplitPane sp) {
+	public FilteredTable_orig(Map<String, String> sel, String chartName, String[] unit, String path,
+			final JTable jTable, JSplitPane sp) {
 
 		this.sp = sp;
 		JPanel jp = new JPanel((new BorderLayout()));
@@ -105,15 +137,32 @@ public class FilteredTable_orig {
 		String[][] tData = getTableData(jTable, alI.toArray(new Integer[0]));
 		Comparator<String> columnDoubleComparator =
 			    (String v1, String v2) -> {
+			    
+			    	Double val1=null;
+			    	try {
+					    //cast v1 to double
+					    val1=Double.parseDouble(v1);
+			    	}catch(NumberFormatException e) {
+			    	}
+			    	Double val2=null;
+			    	try {
+					    //cast v2 to double
+					    val2=Double.parseDouble(v2);
+					 	
+				    }catch(NumberFormatException e) {
+				    	//only care that it happened
+				    }
+			    	if(val1==null && val2==null) {
+			    		return 0;
+			    	}else if(val1==null) {
+			    		return 1;
+			    	}else if(val2==null) {
+			    		return -1;
+			    	}else {
+			    		return Double.compare(val1, val2);
+			    	}
+    		
 
-			    //cast v1 to double
-			    Double val1=Double.parseDouble(v1);
-			    //cast v2 to double
-			    Double val2=Double.parseDouble(v2);
-			    //return result
-			   
-			    	
-			  return Double.compare(val1, val2);
 
 			};
 		
@@ -122,7 +171,7 @@ public class FilteredTable_orig {
 		else
 			newData = getfilterTableData(tData, getFilterData(qualifier, sel));
 		try {
-			DefaultTableModel dtm=new DefaultTableModel(newData,  al.toArray(new String[0])){
+			DefaultTableModel dtm = new DefaultTableModel(newData, al.toArray(new String[0])) {
 
 				@Override
 				public boolean isCellEditable(int row, int column) {
@@ -136,10 +185,10 @@ public class FilteredTable_orig {
 			tableModel = jtable.getModel();
 			sorter = new TableRowSorter<TableModel>(tableModel);
 			jtable.setRowSorter(sorter);
-			//add custom sorters to columns that are numbers
-			for(int colC=0;colC<jtable.getColumnCount();colC++) {
+			// add custom sorters to columns that are numbers
+			for (int colC = 0; colC < jtable.getColumnCount(); colC++) {
 				String clsName = jtable.getColumnName(colC);
-				boolean isDouble=false;
+				boolean isDouble = false;
 				try {
 					Double.parseDouble(clsName);
 					//if we get here it is a numeric col
@@ -151,8 +200,9 @@ public class FilteredTable_orig {
 					;
 				}
 			}
-			//TableColumnModelListener tableColumnModelListener = new TableSorterColumnModelListener();
-			//jtable.getTableHeader().getColumnModel().addColumnModelListener(tableColumnModelListener);
+			// TableColumnModelListener tableColumnModelListener = new
+			// TableSorterColumnModelListener();
+			// jtable.getTableHeader().getColumnModel().addColumnModelListener(tableColumnModelListener);
 		} catch (Exception e) {
 			System.out.println("FilteredTable Caught: ");
 			e.printStackTrace();
@@ -179,9 +229,9 @@ public class FilteredTable_orig {
 							+ path + " " + doubleIndex + " " + jtable.getColumnCount() + "  " + jtable.getRowCount());
 				if (tn == null) {
 					Map<String, Integer[]> metaMap = ModelInterfaceUtil.getMetaIndex2(jtable, doubleIndex);
-					HashMap<String,String> unitsMap=ModelInterfaceUtil.getUnitDataFromTableByLastNamedCol(jTable);
-					
-					tn = new Thumbnail(chartName, unit, path, doubleIndex, jtable, metaMap, sp,unitsMap);
+					HashMap<String, String> unitsMap = ModelInterfaceUtil.getUnitDataFromTableByLastNamedCol(jTable);
+
+					tn = new Thumbnail(chartName, unit, path, doubleIndex, jtable, metaMap, sp, unitsMap);
 				}
 				JPanel jp = tn.getJp();
 				if (jp != null)
@@ -194,7 +244,7 @@ public class FilteredTable_orig {
 		};
 		jb.addMouseListener(ml1);
 		box.add(jb);
-		
+
 		jb = new JButton("Format");
 		jb.setBackground(LegendUtil.getRGB(-8205574));
 		java.awt.event.MouseListener ml2 = new MouseAdapter() {
@@ -213,8 +263,8 @@ public class FilteredTable_orig {
 			}
 		};
 		jb.addMouseListener(ml2);
-		box.add(jb);
-				
+		// box.add(jb);
+
 		box.setSize(new Dimension(80, 20));
 
 		jp.add(box, BorderLayout.NORTH);
@@ -320,10 +370,10 @@ public class FilteredTable_orig {
 				//Dan modified to work with new Diff Results panel
 				//String cls = jtable.getColumnClass(col[j].intValue()).getName();
 				String cls = jtable.getColumnName(col[j].intValue());
-				boolean isDouble=false;
+				boolean isDouble = false;
 				try {
 					Double.parseDouble(cls);
-					isDouble=true;
+					isDouble = true;
 				} catch (Exception e) {
 					;
 				}
@@ -332,12 +382,25 @@ public class FilteredTable_orig {
 					System.out.println(
 							"FilteredTable:getTableData: colData: " + jtable.getValueAt(i, col[j]) + "  " + cls);
 				if (isDouble) {
-					//double d = ((Double) jtable.getValueAt(i, col[j].intValue())).doubleValue();
-					String toTry=jtable.getValueAt(i, col[j].intValue()).toString();
-					double d = Double.parseDouble(toTry);
-					tData[i][j] = toSigFigs(d,sigfigs);
-				} else
+					Double val=null;
+					try {
+						val=Double.parseDouble(jtable.getValueAt(i, col[j].intValue()).toString());
+					}catch(NumberFormatException e){
+						//slightly redundant, null anyway
+						val=null;
+					}
+					if(val.isInfinite() || val.isNaN()) {
+						val=null;
+					}
+						//double d = ((Double) jtable.getValueAt(i, col[j].intValue())).doubleValue();
+					if(val==null /*|| Math.random()<0.5*/) {
+						tData[i][j]="N/A";
+					}else {
+						tData[i][j] = toSigFigs(val,sigfigs);
+					}
+				} else {
 					tData[i][j] = (String) jtable.getValueAt(i, col[j].intValue());
+				}
 			}
 		}
 		return tData;
@@ -351,7 +414,13 @@ public class FilteredTable_orig {
 	    }
 
 	    // this is more precise than simply doing "new BigDecimal(value);"
-	    BigDecimal bd = new BigDecimal(value, MathContext.DECIMAL64);
+	    
+	    BigDecimal bd = new BigDecimal(0.0);
+	    try{
+	    	bd=new BigDecimal(value, MathContext.DECIMAL64);
+	    }catch(Exception e) {
+	    	System.out.println("Could not create Decimal: "+e.toString());
+	    }
 	    bd = bd.round(new MathContext(significantDigits, RoundingMode.HALF_UP));
 	    final int precision = bd.precision();
 	    if (precision < significantDigits)
@@ -426,44 +495,30 @@ public class FilteredTable_orig {
 	}
 
 	/*
-	private class TableSorterColumnModelListener implements TableColumnModelListener {
-
-		@Override
-		public void columnAdded(TableColumnModelEvent arg0) {
-		}
-
-		@Override
-		public void columnMarginChanged(ChangeEvent arg0) {
-		}
-
-		@Override
-		public void columnMoved(TableColumnModelEvent e) {
-			TableColumnModel columnModel = (TableColumnModel) e.getSource();
-			int end = ModelInterfaceUtil.getDoubleTypeColIndex(tableModel);
-			int[] columns = new int[end];
-			for (int i = 0; i < end; i++)
-				columns[i] = columnModel.getColumn(i).getModelIndex();
-			Arrays.sort(columns);
-			setSortingStatus(columnModel, columns, 1);
-		}
-
-		@Override
-		public void columnRemoved(TableColumnModelEvent arg0) {
-		}
-
-		@Override
-		public void columnSelectionChanged(ListSelectionEvent arg0) {
-		}
-
-		public void setSortingStatus(TableColumnModel columnModel, int[] columns, int status) {
-			List<RowSorter.SortKey> sortKeys = new ArrayList<RowSorter.SortKey>();
-			for (int i = 0; i < columns.length; i++) {
-				int column = columnModel.getColumn(columns[i]).getModelIndex();
-				sortKeys.add(new RowSorter.SortKey(column, SortOrder.ASCENDING));
-			}
-			sorter.setSortKeys(sortKeys);
-			sorter.sort();
-		}
-	}*/
+	 * private class TableSorterColumnModelListener implements
+	 * TableColumnModelListener {
+	 * 
+	 * @Override public void columnAdded(TableColumnModelEvent arg0) { }
+	 * 
+	 * @Override public void columnMarginChanged(ChangeEvent arg0) { }
+	 * 
+	 * @Override public void columnMoved(TableColumnModelEvent e) { TableColumnModel
+	 * columnModel = (TableColumnModel) e.getSource(); int end =
+	 * ModelInterfaceUtil.getDoubleTypeColIndex(tableModel); int[] columns = new
+	 * int[end]; for (int i = 0; i < end; i++) columns[i] =
+	 * columnModel.getColumn(i).getModelIndex(); Arrays.sort(columns);
+	 * setSortingStatus(columnModel, columns, 1); }
+	 * 
+	 * @Override public void columnRemoved(TableColumnModelEvent arg0) { }
+	 * 
+	 * @Override public void columnSelectionChanged(ListSelectionEvent arg0) { }
+	 * 
+	 * public void setSortingStatus(TableColumnModel columnModel, int[] columns, int
+	 * status) { List<RowSorter.SortKey> sortKeys = new
+	 * ArrayList<RowSorter.SortKey>(); for (int i = 0; i < columns.length; i++) {
+	 * int column = columnModel.getColumn(columns[i]).getModelIndex();
+	 * sortKeys.add(new RowSorter.SortKey(column, SortOrder.ASCENDING)); }
+	 * sorter.setSortKeys(sortKeys); sorter.sort(); } }
+	 */
 
 }

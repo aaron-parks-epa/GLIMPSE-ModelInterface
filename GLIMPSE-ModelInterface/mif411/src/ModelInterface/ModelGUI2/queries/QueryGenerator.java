@@ -99,6 +99,7 @@ public class QueryGenerator implements java.io.Serializable{
 	String axis1Name;
 	String axis2Name;
 	boolean isRunFunction;
+	Node myNode=null;
 	/**
 	 * A map that maps a node level to a map of node level value to 
 	 * what the value should be called.  This is used to customize labels/
@@ -143,7 +144,12 @@ public class QueryGenerator implements java.io.Serializable{
 		isRunFunction = false;
 		getQueryDialog();
 	}
+	
+	public Node getMyNode() {
+		return myNode;
+	}
 	public QueryGenerator(Node queryIn) {
+		this.myNode=queryIn;
         showAttrMap = new TreeMap<String, List<String>>();
 		if(queryIn.getNodeName().equals(MarketQueryBuilder.xmlName)) {
 			qb = new MarketQueryBuilder(this);

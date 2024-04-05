@@ -379,8 +379,22 @@ public class ThumbnailUtil2 {
 		String temp = keyString.split(",")[0];
 		int ks = temp.split(" ").length;
 		String scen = temp.split(" ")[ks - 1]; 
+		String scenTwo=null;
+		
+		
 		String region = "";
 		if (ks>=2) region = temp.split(" ")[ks - 2];
+		
+		if (region.compareToIgnoreCase("minus")==0) {
+			
+			if(ks>3) {
+				region=temp.split(" ")[ks - 4];
+			}else {
+				region="";
+			}
+			scenTwo=temp.split(" ")[ks-3];
+			scen=scenTwo+ " minus "+scen;
+		}
 		String sect ="";
 		int num=temp.indexOf(region);
 		

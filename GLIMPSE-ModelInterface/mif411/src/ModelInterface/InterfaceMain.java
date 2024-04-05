@@ -148,8 +148,8 @@ public class InterfaceMain implements ActionListener {
 	private JMenu advancedSubMenu2;// YD added
 	private Properties savedProperties;
 	private UndoManager undoManager;
-	
-	private MenuAdder dbView=null;
+
+	private MenuAdder dbView = null;
 
 	private List<MenuAdder> menuAdders;
 	static String path = null;
@@ -159,6 +159,8 @@ public class InterfaceMain implements ActionListener {
 	ArrayList<String> energyNameList = null; // YD added
 
 	public static String unitFileLocation = null;
+	public static String presetRegionListLocation = null; // YD added,Feb-2024
+	public static String favoriteQueriesFileLocation = null; // YD added,Feb-2024
 	/**
 	 * The main GUI the rest of the GUI components of the ModelInterface will rely
 	 * on.
@@ -194,13 +196,27 @@ public class InterfaceMain implements ActionListener {
 		parser.accepts("o", "path to XML DB").withRequiredArg();
 		parser.accepts("q", "path to query file").withRequiredArg();
 		parser.accepts("u", "Path to CSV file for unit conversions").withOptionalArg();
+		parser.accepts("p", "Path to preset region list").withOptionalArg(); // YD added,Feb-2024
+		parser.accepts("f", "Path to favorite queries file").withOptionalArg(); // YD added,Feb-2024
 
 		OptionSet opts = null;
 		try {
 			opts = parser.parse(args);
 		} catch (OptionException e) {
-			System.err.println(e);
-			System.exit(1);
+			System.out.println("Unable to parse all options: "+e.toString());
+			String[] buttons = { "Exit Program", "Lauch with no arguments"};    
+			int returnValue = JOptionPane.showOptionDialog(null, "Invalid Launch Argument found: "+e.toString().split(":")[1], "Bad Launch Argument",
+			        JOptionPane.YES_NO_CANCEL_OPTION, 0, null, buttons, buttons[0]);
+			if(returnValue==0) {
+				System.exit(1);
+			}
+		}
+		
+		//this is to cover launching with a bad argument to blank screen.
+		//specifically to ensure some of the default ones can be tried.
+		if (opts==null) {
+			String[] argsEmpty=new String[0];
+			opts = parser.parse(argsEmpty);
 		}
 
 		if (opts.has("help")) {
@@ -260,8 +276,6 @@ public class InterfaceMain implements ActionListener {
 			main.menuAdders = new ArrayList<MenuAdder>(2);
 			main.menuAdders.add(dbView);
 			main.menuAdders.add(inputView);
-			
-			
 
 			// Run the batch file
 			if (batchDoc != null) {
@@ -274,13 +288,40 @@ public class InterfaceMain implements ActionListener {
 		}
 		if (opts.has("u")) {
 			unitFileLocation = (String) opts.valueOf("u");
-		}else {
-			//also look in the current directory
-			File f=new File("units_rules.csv");
-			if(f.exists()) {
-				unitFileLocation=f.getAbsolutePath();
+		} else {
+			// also look in the current directory
+			File f = new File("units_rules.csv");
+			if (f.exists()) {
+				unitFileLocation = f.getAbsolutePath();
 			}
 		}
+
+		// YD added,Feb-2024
+		// For preset regions in ORDModelInterface
+		if (opts.has("p")) {
+			presetRegionListLocation = (String) opts.valueOf("p");
+			//System.out.println("found the preset region list file from the command line: " + presetRegionListLocation);
+		} else {
+			// also look in the current directory
+			File f_preset = new File("preset_region_list.txt");
+			if (f_preset.exists()) {
+				presetRegionListLocation = f_preset.getAbsolutePath();
+				//System.out.println("found the region list file: " + presetRegionListLocation);
+			}
+		}
+		// For favorite queries in ORDModelInterface
+		if (opts.has("f")) {
+			favoriteQueriesFileLocation = (String) opts.valueOf("f");
+			//System.out.println("found the favorite queries file from the command line: " + favoriteQueriesFileLocation);
+		} else {
+			// also look in the current directory
+			File f_favorite = new File("favorite_queries_list.txt");
+			if (f_favorite.exists()) {
+				favoriteQueriesFileLocation = f_favorite.getAbsolutePath();
+				//System.out.println("found the favorite queries file: " + favoriteQueriesFileLocation);
+			}
+		}
+		// YD edits end,Feb-2024
 
 		try {
 			UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
@@ -292,14 +333,14 @@ public class InterfaceMain implements ActionListener {
 		javax.swing.SwingUtilities.invokeLater(new Runnable() {
 			public void run() {
 				createAndShowGUI();
-				if(path!=null) {
-					DbViewer db=(DbViewer)main.dbView;
+				if (path != null) {
+					DbViewer db = (DbViewer) main.dbView;
 					db.doOpenDB(new File(path));
-					File f=new File(path);
-					File[] files=new File[1];
-					files[0]=f;
-					RecentFilesList.getInstance().addFile(files, "ModelInterface.ModelGUI2.DbViewer","Open DB");
-					
+					File f = new File(path);
+					File[] files = new File[1];
+					files[0] = f;
+					RecentFilesList.getInstance().addFile(files, "ModelInterface.ModelGUI2.DbViewer", "Open DB");
+
 				}
 			}
 		});
@@ -331,7 +372,7 @@ public class InterfaceMain implements ActionListener {
 		main.mainFrame.setVisible(true);
 		if (path != null) {
 			main.fireControlChange("DbViewer");
-			
+
 		}
 	}
 
@@ -359,8 +400,7 @@ public class InterfaceMain implements ActionListener {
 		// added by Dan to allow query file to be specified as runtime argument
 		if (queryFilename != null)
 			savedProperties.setProperty("queryFile", queryFilename);
-		
-		
+
 	}
 
 	private void initialize() {
@@ -489,6 +529,8 @@ public class InterfaceMain implements ActionListener {
 		menuMan.getSubMenuManager(ADVANCED_MENU_POS).getSubMenuManager(ADVANCED_SUBMENU1_POS)
 				.addMenuItem(saveAsMenu = new JMenuItem("Save As"), QUERIES_SAVEAS_MENUITEM_POS);
 		saveAsMenu.setEnabled(false);
+		menuMan.getSubMenuManager(ADVANCED_MENU_POS).getSubMenuManager(ADVANCED_SUBMENU1_POS)
+				.addSeparator(QUERIES_SAVEAS_MENUITEM_POS);
 
 		setupUndo(menuMan);
 		// doSankey(menuMan); //YD commented it out, hide "Sankey Diagrams" for now
@@ -743,6 +785,8 @@ public class InterfaceMain implements ActionListener {
 					} catch (IOException ioe) {
 						ioe.printStackTrace();
 					}
+				}else {
+					JOptionPane.showMessageDialog(null, "No unit file specified, please add to launch arguments");
 				}
 			}
 		} else if (e.getActionCommand().equals("Batch File")) {

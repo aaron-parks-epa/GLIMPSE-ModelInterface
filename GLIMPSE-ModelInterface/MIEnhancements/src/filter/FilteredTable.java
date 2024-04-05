@@ -261,7 +261,7 @@ public class FilteredTable {
 			}
 		};
 		jb.addMouseListener(ml2);
-		box.add(jb);
+		//box.add(jb);
 				
 		box.setSize(new Dimension(80, 20));
 
