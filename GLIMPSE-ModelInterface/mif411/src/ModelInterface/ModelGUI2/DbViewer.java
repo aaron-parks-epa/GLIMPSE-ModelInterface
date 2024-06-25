@@ -85,6 +85,7 @@ import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JList;
+import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
@@ -206,6 +207,7 @@ public class DbViewer implements ActionListener, MenuAdder, BatchRunner {
 	private JMenuItem createFavoritesMenu;// YD Feb-2024
 	private JMenuItem loadFavoritesMenu;
 	private JMenuItem appendFavoritesMenu;// YD Feb-2024
+	private JMenuItem menuExpPrn;
 	private String filteringText; // YD added
 	private Enumeration<TreePath> expansionState;// YD added
 	private boolean AllCollapsed = false; // YD added
@@ -386,10 +388,30 @@ public class DbViewer implements ActionListener, MenuAdder, BatchRunner {
 				}
 			}
 		});
-		final JMenuItem menuExpPrn = makeMenuItem("Export Tabs as CSVs");
-		menuMan.getSubMenuManager(InterfaceMain.FILE_MENU_POS).addMenuItem(menuExpPrn, 20);
-		menuMan.getSubMenuManager(InterfaceMain.FILE_MENU_POS).addSeparator(20);
+		//menuExpPrn = makeMenuItem("Export Tabs as CSVs");
+		//menuMan.getSubMenuManager(InterfaceMain.FILE_MENU_POS).addMenuItem(menuExpPrn, 20);
+		//JMenu tabctrl=new JMenu("Tabs");
+		JMenuItem tabCl=new JMenuItem("Close All Tabs");
+		tabCl.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				closeAllTabs();
+			}
+
+			
+		});
+		menuExpPrn=new JMenuItem("Export Tabs as CSVs");
 		menuExpPrn.setEnabled(false);
+		menuMan.getSubMenuManager(InterfaceMain.VIEW_MENU_POS).addMenuItem(tabCl,1);
+		menuMan.getSubMenuManager(InterfaceMain.VIEW_MENU_POS).addSeparator(2);
+		
+		//tabctrl.add(tabCl);
+		//tabctrl.add(menuExpPrn);
+		menuMan.getSubMenuManager(InterfaceMain.FILE_MENU_POS).addSeparator(InterfaceMain.FILE_MENU_SEPERATOR);
+		menuMan.getSubMenuManager(InterfaceMain.FILE_MENU_POS).addMenuItem(menuExpPrn, 35);
+		menuMan.getSubMenuManager(InterfaceMain.FILE_MENU_POS).addSeparator(37);
+		
+		
+		//menuMan.getSubMenuManager(InterfaceMain.FILE_MENU_POS).addMenuItem(tabctrl, InterfaceMain.FILE_TABS_SUBMENU_POS);
 		parentFrame.addPropertyChangeListener(new PropertyChangeListener() {
 			private int numQueries = 0;
 
@@ -411,19 +433,24 @@ public class DbViewer implements ActionListener, MenuAdder, BatchRunner {
 		// YD added lines, moved "Disable 3 Significant Digits" to the top
 		significantDigitsMenu = new JMenuItem("Disable 3 Significant Digits");
 		significantDigitsMenu.addActionListener(this);
-		menuMan.getSubMenuManager(InterfaceMain.ADVANCED_MENU_POS)
-				.getSubMenuManager(InterfaceMain.ADVANCED_SUBMENU1_POS).addMenuItem(significantDigitsMenu, 0);
+		
+		
+		//menuMan.getSubMenuManager(InterfaceMain.ADVANCED_MENU_POS)
+		//		.getSubMenuManager(InterfaceMain.ADVANCED_SUBMENU1_POS).addMenuItem(significantDigitsMenu, 0);
+		menuMan.getSubMenuManager(InterfaceMain.VIEW_MENU_POS).addMenuItem(significantDigitsMenu, 10);
 		// menuMan.getSubMenuManager(InterfaceMain.ADVANCED_MENU_POS).getSubMenuManager(InterfaceMain.ADVANCED_SUBMENU1_POS).addSeparator(0);
 		significantDigitsMenu.setEnabled(true);
 
 		enableUnitConversionsMenu = new JMenuItem("Disable Unit Conversions");
 		enableUnitConversionsMenu.addActionListener(this);
-		menuMan.getSubMenuManager(InterfaceMain.ADVANCED_MENU_POS)
-				.getSubMenuManager(InterfaceMain.ADVANCED_SUBMENU1_POS).addMenuItem(enableUnitConversionsMenu, 1);
-		menuMan.getSubMenuManager(InterfaceMain.ADVANCED_MENU_POS)
-				.getSubMenuManager(InterfaceMain.ADVANCED_SUBMENU1_POS).addSeparator(1);
+		//menuMan.getSubMenuManager(InterfaceMain.ADVANCED_MENU_POS)
+		//		.getSubMenuManager(InterfaceMain.ADVANCED_SUBMENU1_POS).addMenuItem(enableUnitConversionsMenu, 1);
+		//menuMan.getSubMenuManager(InterfaceMain.ADVANCED_MENU_POS)
+		//		.getSubMenuManager(InterfaceMain.ADVANCED_SUBMENU1_POS).addSeparator(1);
 		enableUnitConversionsMenu.setEnabled(true);
-
+		menuMan.getSubMenuManager(InterfaceMain.VIEW_MENU_POS).addMenuItem(enableUnitConversionsMenu, 11);
+		
+		
 		queriesLockMenu = new JMenuItem("Unlock Query Tree");
 		queriesLockMenu.addActionListener(this);
 		menuMan.getSubMenuManager(InterfaceMain.ADVANCED_MENU_POS)
@@ -655,8 +682,10 @@ public class DbViewer implements ActionListener, MenuAdder, BatchRunner {
 				Map<String, String> scnAttrMap = XMLDB.getAttrMap(tempNode);
 				ret.add(new ScenarioListItem(docName, scnAttrMap.get("name"), scnAttrMap.get("date")));
 			}
-		} catch (QueryException e) {
-			e.printStackTrace();
+		} catch (Exception e) {
+			System.out.println("Could not load database: "+e.toString());
+			JOptionPane.showMessageDialog(null, "Could not load selected database, probably due to file corruption. Please review console for futher details.  All loading will stop.");
+			return null;
 		} finally {
 			queryProc.close();
 		}
@@ -683,7 +712,8 @@ public class DbViewer implements ActionListener, MenuAdder, BatchRunner {
 				ret.add(temp.toJava());
 			}
 		} catch (QueryException e) {
-			e.printStackTrace();
+			System.out.println("Error loading regions: "+e.toString());
+			return null;
 		} finally {
 			queryProc.close();
 		}
@@ -829,6 +859,7 @@ public class DbViewer implements ActionListener, MenuAdder, BatchRunner {
 		final JCheckBox doTotalCheckBox = new JCheckBox("Total"); // Dan
 		final JButton queryFilterButton = new JButton("Search"); // YD,2024
 		final JButton favoriteQueryButton = new JButton("Favorites"); // YD added,Feb-2024
+		//final JButton closeAllTabsButton = new JButton("Close Tabs"); 
 		// editButton.setEnabled(false);
 		queriesEditMenu.setEnabled(false); // YD added
 		runQueryButton.setEnabled(false);
@@ -843,6 +874,7 @@ public class DbViewer implements ActionListener, MenuAdder, BatchRunner {
 		buttonPanel.add(listCollapseButton);// Dan
 		buttonPanel.add(queryFilterButton); // YD,2024
 		buttonPanel.add(favoriteQueryButton); // YD added,Feb-2024
+		//buttonPanel.add(closeAllTabsButton);
 		// buttonPanel.add(getSingleQueryButton);
 		// buttonPanel.add(createButton);
 		// buttonPanel.add(removeButton);
@@ -1453,6 +1485,10 @@ public class DbViewer implements ActionListener, MenuAdder, BatchRunner {
 				selectFavoriteQueries(queryList);
 			}
 		}); // favoriteQueryButton listener ends
+		
+		
+		
+		
 
 		// YD added this listener,Feb-2024
 		createFavoritesMenu.addActionListener(new ActionListener() {
@@ -1695,6 +1731,20 @@ public class DbViewer implements ActionListener, MenuAdder, BatchRunner {
 
 	} // "loadRegionListToDropdown()" method end
 
+	public void closeAllTabs() {
+		//need to disable the export tabs option
+		menuExpPrn.setEnabled(false);
+		
+		//grab the panel
+		if (tablesTabs.getTabCount() == 0) {
+			//noting to do
+			return;
+		}
+		//iterate over children
+		tablesTabs.removeAll();
+		//close each one
+	}
+	
 	// YD added this method,Feb-2024
 	public void selectFavoriteQueries(JTree queryList) {
 
@@ -2040,28 +2090,28 @@ public class DbViewer implements ActionListener, MenuAdder, BatchRunner {
 							xmlFilter);
 
 					if (xmlFiles != null) {
+						
+						
 						dirtyBit.setDirty();
 						main.getProperties().setProperty("lastDirectory", xmlFiles[0].getParent());
-						final JProgressBar progBar = new JProgressBar(0, xmlFiles.length);
-						final JDialog jd = XMLDB.createProgressBarGUI(progBar, "Adding Runs",
-								"Importing runs into the database");
-						final Runnable incProgress = (new Runnable() {
-							public void run() {
-								progBar.setValue(progBar.getValue() + 1);
-							}
-						});
-						jd.setVisible(true);
+						
+						//final Runnable incProgress = (new Runnable() {
+						//	public void run() {
+						//		progBar.setValue(progBar.getValue() + 1);
+						//	}
+						//});
+						//jd.setVisible(true);
 						// run the import off the gui thread which ensures progress updates correctly
 						// and keeps the gui responsive
 						new Thread(new Runnable() {
 							public void run() {
 								for (int addFileIndex = 0; addFileIndex < xmlFiles.length; ++addFileIndex) {
-									XMLDB.getInstance().addFile(xmlFiles[addFileIndex].getAbsolutePath());
-									SwingUtilities.invokeLater(incProgress);
+									XMLDB.getInstance().addFile(xmlFiles[addFileIndex].getAbsolutePath(),addFileIndex,xmlFiles.length);
+									//SwingUtilities.invokeLater(incProgress);
 								}
 								scns = getScenarios();
 								list.setListData(scns);
-								jd.setVisible(false);
+								//jd.setVisible(false);
 							}
 						}).start();
 					}
@@ -2200,8 +2250,8 @@ public class DbViewer implements ActionListener, MenuAdder, BatchRunner {
 					return;
 				}
 				final JProgressBar progBar = new JProgressBar(0, selectedList.length);
-				final JDialog jd = XMLDB.createProgressBarGUI(progBar, "Exporting Runs",
-						"Exporting runs from the database");
+				final JLabel curLabel=new JLabel("Exporting runs from the database");
+				final JDialog jd = XMLDB.createProgressBarGUI(progBar, "Exporting Runs", curLabel);
 				final Runnable incProgress = (new Runnable() {
 					public void run() {
 						progBar.setValue(progBar.getValue() + 1);
@@ -3113,7 +3163,7 @@ public class DbViewer implements ActionListener, MenuAdder, BatchRunner {
 					doc = (ANode) res.next();
 					if (doc == null) {
 						// Try to create it then get the doc
-						xmldbInstance.addFile("cache.xml", "<singleQueryListCache />");
+						xmldbInstance.addFile("cache.xml", "<singleQueryListCache />",1,1);
 						queryProc = xmldbInstance.createQuery("/singleQueryListCache", null, null, null);
 						res = queryProc.iter();
 						doc = (ANode) res.next();

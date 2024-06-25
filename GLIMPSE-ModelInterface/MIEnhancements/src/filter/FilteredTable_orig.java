@@ -495,30 +495,44 @@ public class FilteredTable_orig {
 	}
 
 	/*
-	 * private class TableSorterColumnModelListener implements
-	 * TableColumnModelListener {
-	 * 
-	 * @Override public void columnAdded(TableColumnModelEvent arg0) { }
-	 * 
-	 * @Override public void columnMarginChanged(ChangeEvent arg0) { }
-	 * 
-	 * @Override public void columnMoved(TableColumnModelEvent e) { TableColumnModel
-	 * columnModel = (TableColumnModel) e.getSource(); int end =
-	 * ModelInterfaceUtil.getDoubleTypeColIndex(tableModel); int[] columns = new
-	 * int[end]; for (int i = 0; i < end; i++) columns[i] =
-	 * columnModel.getColumn(i).getModelIndex(); Arrays.sort(columns);
-	 * setSortingStatus(columnModel, columns, 1); }
-	 * 
-	 * @Override public void columnRemoved(TableColumnModelEvent arg0) { }
-	 * 
-	 * @Override public void columnSelectionChanged(ListSelectionEvent arg0) { }
-	 * 
-	 * public void setSortingStatus(TableColumnModel columnModel, int[] columns, int
-	 * status) { List<RowSorter.SortKey> sortKeys = new
-	 * ArrayList<RowSorter.SortKey>(); for (int i = 0; i < columns.length; i++) {
-	 * int column = columnModel.getColumn(columns[i]).getModelIndex();
-	 * sortKeys.add(new RowSorter.SortKey(column, SortOrder.ASCENDING)); }
-	 * sorter.setSortKeys(sortKeys); sorter.sort(); } }
-	 */
+	private class TableSorterColumnModelListener implements TableColumnModelListener {
+
+		@Override
+		public void columnAdded(TableColumnModelEvent arg0) {
+		}
+
+		@Override
+		public void columnMarginChanged(ChangeEvent arg0) {
+		}
+
+		@Override
+		public void columnMoved(TableColumnModelEvent e) {
+			TableColumnModel columnModel = (TableColumnModel) e.getSource();
+			int end = ModelInterfaceUtil.getDoubleTypeColIndex(tableModel);
+			int[] columns = new int[end];
+			for (int i = 0; i < end; i++)
+				columns[i] = columnModel.getColumn(i).getModelIndex();
+			Arrays.sort(columns);
+			setSortingStatus(columnModel, columns, 1);
+		}
+
+		@Override
+		public void columnRemoved(TableColumnModelEvent arg0) {
+		}
+
+		@Override
+		public void columnSelectionChanged(ListSelectionEvent arg0) {
+		}
+
+		public void setSortingStatus(TableColumnModel columnModel, int[] columns, int status) {
+			List<RowSorter.SortKey> sortKeys = new ArrayList<RowSorter.SortKey>();
+			for (int i = 0; i < columns.length; i++) {
+				int column = columnModel.getColumn(columns[i]).getModelIndex();
+				sortKeys.add(new RowSorter.SortKey(column, SortOrder.ASCENDING));
+			}
+			sorter.setSortKeys(sortKeys);
+			sorter.sort();
+		}
+	}*/
 
 }

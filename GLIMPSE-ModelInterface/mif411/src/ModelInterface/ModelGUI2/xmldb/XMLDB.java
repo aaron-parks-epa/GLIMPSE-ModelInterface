@@ -34,6 +34,7 @@ import java.awt.Container;
 import java.awt.Dimension;
 import java.io.File;
 import java.io.IOException;
+import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Iterator;
@@ -51,6 +52,7 @@ import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JProgressBar;
+import javax.swing.SwingUtilities;
 
 import org.basex.core.BaseXException;
 import org.basex.core.Context;
@@ -161,16 +163,36 @@ public class XMLDB {
 		}
 	}
 
+	/**
+	 * Private constructor to be used with factories/static inits
+	 * @param db the path to the database
+	 * @throws Exception If the DB cannot be opened.
+	 */
 	private XMLDB(String db) throws Exception {
         wasContextAdopted = false;
 		if(!openDB(db)) {
 			throw new Exception ("Could not open DB");
 		}
     }
+	
+	/**
+	 * Public constructor using a context to initialize.
+	 * @param contextIn The built context.
+	 * @throws Exception Exception if the DB cannot be opened.
+	 */
 	public XMLDB(Context contextIn) throws Exception {
         wasContextAdopted = true;
         context = contextIn;
 	}
+	
+	/**
+	 * Opens the DB given a path.  Checks if the path is valid and sets in the 
+	 * preferences file.
+	 * 
+	 * @param dbPath Path to the DB to open.  Can be absolulte or relative
+	 * @return whether or not DB opened sucessfully
+	 * @throws Exception Throws from downstream children.
+	 */
 	private boolean openDB(String dbPath) throws Exception {
         // We need to seperate the path to the DB and the container name (last name in the path)
         File dbLocationFile = new File(dbPath).getAbsoluteFile();
@@ -199,6 +221,7 @@ public class XMLDB {
         context.options.set(MainOptions.CHOP, true);
         context.options.set(MainOptions.ADDCACHE, true);
         context.options.set(MainOptions.INTPARSE, true);
+       // context.options.set(MainOptions.AUTOOPTIMIZE, true);
 
         System.out.println("Database path="+path);
         
@@ -251,15 +274,119 @@ public class XMLDB {
         return true;
         
 	}
-	public void addFile(String fileName) {
+	public void addFile(String fileName, int myNum, int totalNum) {
         // try to generate a unique name for this file to be added
         SimpleDateFormat format = new SimpleDateFormat("ddMMyy-hhmmss");
-        addFile("run_"+format.format(new Date())+".xml", fileName);
+        addFile("run_"+format.format(new Date())+".xml", fileName,myNum,totalNum);
 	}
-    public void addFile(String docName, String fileName) {
-	    try {
-            new Add(docName, fileName).execute(context);
-	    } catch(BaseXException e) {
+
+	/**
+	 * This method adds a new file to the DB.  The progress info method is called
+	 * in a seperate thread (and window) to keep track.  Note that
+	 * execute method from BaseX blocks, so we use that as an easy gate to know
+	 * when to close.
+	 * @param docName the docuname to use
+	 * @param fileName the file to import
+	 */
+    public void addFile(String docName, String fileName, int myCount, int total) {
+    	try {
+           Add myAdd= new Add(docName, fileName);
+           //final JProgressBar progBar = new JProgressBar(0, 100);
+           //final JLabel curStatus=new JLabel("Importing single run into the database . . phase 1");
+			//final JDialog jd = XMLDB.createProgressBarGUI(progBar, "Adding Single Run", curStatus);
+           final JProgressBar progBarOverall = new JProgressBar(0, total);
+           progBarOverall.setValue(myCount);
+           File f=new File(fileName);
+			final JLabel overallLabel = new JLabel("Importing "+f.getName());
+			final JProgressBar StepOneProgBar = new JProgressBar(0, 100);
+			final JLabel StepOneLabel = new JLabel("Copying to Database . . .");
+			StepOneProgBar.setIndeterminate(true);
+			//final JProgressBar StepTwoProgBar = new JProgressBar(0, 100);
+			//final JLabel StepTwoLabel = new JLabel("Step two . . not started");
+			//final JProgressBar finalizingProgBar = new JProgressBar(0, 100);
+			//final JLabel finalizingLabel = new JLabel("Flushing cache . . . not started.");
+			//final JLabel curLabel = new JLabel("Importing scenarios into the database");
+			final JDialog jd = XMLDB.createProgressBarGUIAddScenario("Importing Scenarios into Database", 
+					overallLabel,progBarOverall,
+					StepOneLabel,StepOneProgBar
+					);
+			jd.setSize(400, 250);
+			
+			final Runnable incProgress = (new Runnable() {
+				public void run() {
+					int lastVal=-1;
+					int curActivePRog=1;
+					jd.setModal(false);
+					jd.setVisible(true);
+					//there is actually a 0th step, that finishes fast, so just let it get done
+					try {
+						Thread.sleep(2000);
+					} catch (InterruptedException e1) {
+						// TODO Auto-generated catch block
+						e1.printStackTrace();
+					}
+					while(myAdd.progressInfo()<1) {
+						StepOneProgBar.setIndeterminate(false);
+						int myVal=(int)(myAdd.progressInfo()*100.0);
+						//System.out.println(new Timestamp(System.currentTimeMillis()).toString()+" New val: "+myVal);
+						if(curActivePRog==1) {
+							StepOneProgBar.setValue(myVal/2);
+							if(myVal<lastVal) {
+								//StepOneLabel.setText("Step one . . complete");
+								//StepOneProgBar.setValue(100);
+								curActivePRog=2;
+							}
+						}
+						if(curActivePRog==2) {
+							StepOneProgBar.setValue(50+(myVal/2));
+						}
+						
+						lastVal=myVal;
+						jd.repaint();
+						try {
+							Thread.yield();
+							Thread.sleep(500);
+						}catch(Exception e) {
+							System.out.println("Error sleeping on import: "+e.toString());
+						}
+						
+					}
+					
+					
+					//progBar.setValue(98);
+					StepOneLabel.setText("Writing to disk . . . ");
+					StepOneProgBar.setIndeterminate(true);
+					//curStatus.setText("Importing single run into the database . . finalizing");
+					//try {
+					//	myAdd.
+					//}catch(Exception e) {}
+					//jd.dispose();
+				}
+			});
+			Thread w=new Thread(incProgress);
+			w.start();
+			//SwingUtilities.invokeLater(incProgress);
+			//final Runnable goExe = (new Runnable() {
+			//	public void run() {
+					try{ 
+						myAdd.execute(context);
+					}catch(Exception e) {
+						System.out.println("Problem running import: "+e.toString());
+						System.out.println("For file "+fileName);
+						JOptionPane.showMessageDialog(jd, "The import for "+fileName+" failed.  Note that this may leave your database in a brokens state.");
+					}
+			//	}
+			//});
+			
+			//Thread T=new Thread(goExe);
+			//T.start();
+
+			jd.dispose();
+            
+			//System.out.println("Done adding.");
+           
+
+	    } catch(Exception e) {
 		    e.printStackTrace();
 	    }
 	}
@@ -692,7 +819,17 @@ public class XMLDB {
 	}
     */
 	// TODO: this is a util method and should be moved somewhere else
-	public static JDialog createProgressBarGUI(JProgressBar progBar, String title, String labelStr) {
+	/**
+	 * This method creates a window in a with a progress bar and label.
+	 * If put in a thread both the bar and lable (passed in) can be updated
+	 * using their respective functions.
+	 * 
+	 * @param progBar The progressbar to update
+	 * @param title The title of the window
+	 * @param label The Jlabel that will be added to window.
+	 * @return
+	 */
+	public static JDialog createProgressBarGUI(JProgressBar progBar, String title, JLabel label) {
         final JFrame parentFrame = InterfaceMain.getInstance().getFrame();
 		if(progBar.getMaximum() == 0) {
 			return null;
@@ -702,7 +839,7 @@ public class XMLDB {
 		JPanel all = new JPanel();
 		all.setLayout( new BoxLayout(all, BoxLayout.Y_AXIS));
 		progBar.setPreferredSize(new Dimension(200, 20));
-		JLabel label = new JLabel(labelStr);
+		//JLabel label = new JLabel(labelStr);
 		Container contentPane = filterDialog.getContentPane();
 		all.add(label, BorderLayout.PAGE_START);
 		all.add(Box.createVerticalStrut(10));
@@ -711,6 +848,38 @@ public class XMLDB {
 		contentPane.add(all, BorderLayout.PAGE_START);
 		filterDialog.pack();
 		filterDialog.setVisible(true);
+		return filterDialog;
+	}
+	
+	public static JDialog createProgressBarGUIAddScenario(String title, JLabel overallLabel, JProgressBar overallProgBar, 
+			JLabel StepOneLabel, JProgressBar StepOneProgBar ) {
+        final JFrame parentFrame = InterfaceMain.getInstance().getFrame();
+		
+		JDialog filterDialog = new JDialog(parentFrame, title, true);
+		filterDialog.setAlwaysOnTop(true);
+		JPanel all = new JPanel();
+		all.setLayout( new BoxLayout(all, BoxLayout.Y_AXIS));
+		Container contentPane = filterDialog.getContentPane();
+		
+		overallProgBar.setPreferredSize(new Dimension(200, 20));
+		all.add(overallLabel, BorderLayout.PAGE_START);
+		all.add(Box.createVerticalStrut(10));
+		all.add(overallProgBar);
+		all.add(Box.createVerticalStrut(20));
+		
+		StepOneProgBar.setPreferredSize(new Dimension(200, 20));
+		all.add(StepOneLabel);
+		all.add(Box.createVerticalStrut(10));
+		all.add(StepOneProgBar);
+		all.add(Box.createVerticalStrut(20));
+		
+		
+		
+		
+		all.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+		contentPane.add(all, BorderLayout.PAGE_START);
+		filterDialog.pack();
+		//filterDialog.setVisible(true);
 		return filterDialog;
 	}
 }

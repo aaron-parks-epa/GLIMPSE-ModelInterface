@@ -337,7 +337,11 @@ public class QueryResultsPanel extends JPanel {
 				//not all conversions have a query specified
 				if(uciCheck.getQuery()==null || uciCheck.getQuery().trim().length()==0) {
 					conversionOpts.add(uciCheck);
-				}else if(uciCheck.getQuery().compareToIgnoreCase(qg.toString().trim())==0) {
+				}else if(uciCheck.getQuery().contains("*")) {
+					//for wildcards, since we can't rule it out yet
+					conversionOpts.add(uciCheck);
+				}
+				else if(uciCheck.getQuery().compareToIgnoreCase(qg.toString().trim())==0) {
 					conversionOpts.add(uciCheck);
 				}
 			}
@@ -540,7 +544,7 @@ public class QueryResultsPanel extends JPanel {
 				if(lines.get(curLine).startsWith("#")) {
 					continue;
 				}
-				parsedLine=lines.get(curLine).split(",");
+				parsedLine=lines.get(curLine).split(",(?=([^\"]|\"[^\"]*\")*$)");
 				for(int i=0;i<parsedLine.length;i++) {
 					parsedLine[i]=parsedLine[i].replace("\"", "").trim();
 				}

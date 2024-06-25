@@ -103,7 +103,8 @@ public class InterfaceMain implements ActionListener {
 
 	public static final int FILE_MENU_POS = 0;
 	public static final int EDIT_MENU_POS = 1;
-	public static final int TOOLS_MENU_POS = 80; // YD added
+	public static final int VIEW_MENU_POS=2;
+	//public static final int TOOLS_MENU_POS = 80; // YD added
 	public static final int ADVANCED_MENU_POS = 90; // YD added
 	public static final int ADVANCED_SUBMENU1_POS = 0; // YD added
 	public static final int ADVANCED_SUBMENU15_POS = 2; // YD added
@@ -113,13 +114,16 @@ public class InterfaceMain implements ActionListener {
 	public static final int HELP_MENU_POS = 100;
 	public static final int FILE_NEW_MENUITEM_POS = 0;
 	public static final int FILE_OPEN_SUBMENU_POS = 5;
+	public static final int FILE_TABS_SUBMENU_POS=20;
+	public static final int FILE_MENU_SEPERATOR=30;
+	public static final int FILE_QUIT_MENUITEM_POS = 50;
 	public static final int QUERIES_SAVE_MENUITEM_POS = 35; // YD changed
 	public static final int QUERIES_SAVEAS_MENUITEM_POS = 40; // YD changed
-	public static final int FILE_QUIT_MENUITEM_POS = 50;
+	
 	public static final int EDIT_QUERY_SUBMENU_POS = 18; // YD added
 	public static final int EDIT_COPY_MENUITEM_POS = 10;
 	public static final int EDIT_PASTE_MENUITEM_POS = 11;
-	public static final int TOOLS_CSV_MENUITEM_POS = 1; // YD added
+	public static final int TOOLS_CSV_MENUITEM_POS = 20; // YD added
 	public static final int TOOLS_UNIT_MENUITEM_POS = 2; // YD added
 	public static final int TOOLS_SANKEY_MENUITEM_POS = 3;// YD added
 	public static final int SANKEY_LOAD_MENUITEM_POS = 60; // YD added
@@ -448,7 +452,10 @@ public class InterfaceMain implements ActionListener {
 		// commented out
 		// saveAsMenu.setEnabled(false);//YD commented out
 		menuMan.getSubMenuManager(FILE_MENU_POS).addMenuItem(quitMenu = makeMenuItem("Quit"), FILE_QUIT_MENUITEM_POS);
-
+		
+		
+		
+		
 		menuMan.addMenuItem(new JMenu("Edit"), EDIT_MENU_POS);
 		// YD edits, August-2023
 		// copyMenu = new JMenuItem("Copy");//YD commented out
@@ -477,7 +484,8 @@ public class InterfaceMain implements ActionListener {
 		// FILE_OPEN_SUBMENU_POS);
 
 		// YD added lines to add "Tools" and "Advanced" to the main menu bar
-		menuMan.addMenuItem(new JMenu("Tools"), TOOLS_MENU_POS);
+		menuMan.addMenuItem(new JMenu("View"), VIEW_MENU_POS);
+		//menuMan.addMenuItem(new JMenu("Tools"), TOOLS_MENU_POS);
 		menuMan.addMenuItem(new JMenu("Advanced"), ADVANCED_MENU_POS);
 		menuMan.addMenuItem(new JMenu("Help"), HELP_MENU_POS);
 		// YD added the following lines to add "Query File" under "Edit" dropdown menu
@@ -860,7 +868,7 @@ public class InterfaceMain implements ActionListener {
 	}
 
 	public void fireControlChange(String newValue) {
-		//System.out.println("Going to change controls");
+		// System.out.println("Going to change controls");
 		if (newValue.equals(oldControl)) {
 			oldControl += "Same";
 		}

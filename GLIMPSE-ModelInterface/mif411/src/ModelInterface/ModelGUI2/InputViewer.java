@@ -342,7 +342,8 @@ public class InputViewer implements ActionListener, TableModelListener, MenuAdde
       	 JMenuItem toolsCSVMenu = new JMenuItem("CSV to XML");
 		 toolsCSVMenu.setEnabled(true); 
 		 toolsCSVMenu.addActionListener(this); 
-		 menuMan.getSubMenuManager(InterfaceMain.TOOLS_MENU_POS).addMenuItem(toolsCSVMenu, InterfaceMain.TOOLS_CSV_MENUITEM_POS); 
+		 menuMan.getSubMenuManager(InterfaceMain.ADVANCED_MENU_POS).addSeparator(InterfaceMain.TOOLS_CSV_MENUITEM_POS-1);
+		 menuMan.getSubMenuManager(InterfaceMain.ADVANCED_MENU_POS).addMenuItem(toolsCSVMenu, InterfaceMain.TOOLS_CSV_MENUITEM_POS); 
 	}
 
 
