@@ -42,12 +42,14 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Stack;
 
 import javax.imageio.ImageIO;
+import javax.swing.JComboBox;
 import javax.swing.JFileChooser;
 import javax.swing.filechooser.FileSystemView;
 
@@ -102,15 +104,16 @@ public class LegendUtil {
 		return legenditemcollection;
 	}
 
-	public static LegendItemCollection crtLegenditemcollection(String[] legend, TexturePaint[] tp) {
+	public static LegendItemCollection crtLegenditemcollection(String[] legend, TexturePaint[] tp, HashMap <String,JComboBox> jcbLookup) {
 		LegendItemCollection legenditemcollection = new LegendItemCollection();
 		for (int i = legend.length - 1; i > -1; i--) {
 			String key = legend[i].trim();
 			//hack to address problem with non-matching series in graphics when transposing...
 			TexturePaint paintstyle=null;
-			
+			JComboBox jcb=jcbLookup.get(legend[i]);
+			int j =jcb.getSelectedIndex();
 			try{
-				paintstyle=tp[i];
+				paintstyle=tp[j];
 			} catch(Exception e) {
 				paintstyle=tp[0];
 			}
@@ -123,9 +126,10 @@ public class LegendUtil {
 	public static LegendItemCollection crtLegenditemcollection(String[] legend, Paint[] tp) {
 		LegendItemCollection legenditemcollection = new LegendItemCollection();
 		for (int i = legend.length - 1; i > -1; i--) {
+		
 			String key = legend[i].trim();
 			LegendItem legenditem = new LegendItem(key, "-", null, null, Plot.DEFAULT_LEGEND_ITEM_BOX,
-					tp[legend.length - 1 - i]);
+					tp[i]);
 			legenditemcollection.add(legenditem);
 		}
 		return legenditemcollection;
@@ -230,8 +234,10 @@ public class LegendUtil {
 		int[] tp = new int[lc.getItemCount()];
 		for (int i = 0; i < lc.getItemCount(); i++) {
 			Color c = (Color) lc.get(i).getFillPaint();
-			if (c.getRed()==255 && c.getGreen()==255 && c.getBlue() > 153)
-				c = new Color(255,255,153);
+			if (c.getRed()==255 && c.getGreen()==255 && c.getBlue() > 153) {
+				//we don't want any colors to close to white, won't be visible on graph
+				c = new Color((int)(Math.random()*255),(int)(Math.random()*255),(int)(Math.random()*153));
+			}
 			tp[i] = c.getRGB();
 		}
 		return tp;
@@ -392,8 +398,8 @@ public class LegendUtil {
 	public static TexturePaint getTexturePaint(Color color, Color pcolor, int pattern, int stroke_i) {
 		TexturePaint tp = null;
 		BasicStroke stroke_w = getLineStroke(stroke_i);
-		if (color.getRed() == color.getGreen() && color.getGreen() == color.getBlue() && color.getRed() < 100)
-			pcolor = Color.magenta;
+		//if (color.getRed() == color.getGreen() && color.getGreen() == color.getBlue() && color.getRed() < 100)
+		//	pcolor = Color.magenta;
 
 		switch (pattern) {
 		case -4126:

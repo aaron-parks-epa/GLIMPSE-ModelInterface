@@ -49,6 +49,7 @@ import java.util.Map;
 import org.jfree.chart.ChartUtils;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.Marker;
+import org.jfree.chart.title.LegendTitle;
 import org.jfree.chart.ui.RectangleEdge;
 
 import chartOptions.FileUtil;
@@ -90,6 +91,8 @@ public class Chart {
 	protected String[][] annotationText;
 	protected boolean showLineAndShape;
 	protected boolean debug = false;
+	
+	public LegendTitle myLegend=null;
 	
 	private HashMap<String,String> unitsLookup=null;
 
@@ -138,7 +141,7 @@ public class Chart {
 		if (lineStrokes == null) {
 			this.lineStrokes = new int[this.pColor.length];
 			for (int i = 0; i < this.lineStrokes.length; i++)
-				this.lineStrokes[i] = 0;
+				this.lineStrokes[i] = 5;
 		}
 	}
 
@@ -325,20 +328,32 @@ public class Chart {
 			MarkerUtil.createMarker(chart, markerMap);
 		ChartUtil.setSubTitle(chart, titles);
 	
-		
+		//chart.getLegend().setVisible(false);
 		int lMax = 0;
 		String[] temp = legend.split(",");
-		for (int i = 0; i < temp.length; i++)
+		for (int i = 0; i < temp.length; i++) {
 			lMax=Math.max(lMax, temp[i].length());
-		if (legend.split(",").length < 30 && lMax < 30)
-			chart.getLegend().setPosition(RectangleEdge.RIGHT);
-		else
-			chart.getLegend().setPosition(RectangleEdge.BOTTOM);
+		}
+		myLegend=chart.getLegend();
+		chart.getLegend().setPosition(RectangleEdge.RIGHT);
+		if (legend.split(",").length < 15 && lMax < 30) {
+			
+			//chart.getLegend().setVisible(true);
+		}
+		else {
+			
+			chart.removeLegend();
+			//chart.getLegend().setPosition(RectangleEdge.BOTTOM);
+			//chart.getLegend().setVisible(false);
+			
+		}
 
 
 		
 		setTitleChangeListener();
 		ChartUtils.applyCurrentTheme(chart);
+		//chart.removeLegend();
+		
 	}
 
 	protected void setTitleChangeListener() {

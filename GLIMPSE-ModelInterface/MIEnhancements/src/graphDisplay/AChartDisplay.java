@@ -92,9 +92,20 @@ public class AChartDisplay {
 	// type performed
 	private JFreeChart curchart;
 	// Main Panel of AChartDisplay
-	final private JSplitPane sp = new JSplitPane();
+	private JSplitPane sp;
+	private JPanel jp;
 	private JDialog dialog;
-
+	private JScrollPane chartPaneScroll=null;
+	
+	private int smallSizeX=540;
+	private int smallSizeY=480;
+	
+	JButton jb_table = new JButton("Show Table");
+	JButton jb_legend = new JButton("Show Legend");
+	
+	ChartOptions myOpts=null;
+	
+	
 	public AChartDisplay(Chart[] charts, final int id) {// final
 		super();
 		this.charts = charts;
@@ -102,6 +113,9 @@ public class AChartDisplay {
 		this.chart = charts[id];
 		init();
 	}
+	
+	private boolean tableShowing=false;
+	private boolean legendShowing=false;
 
 	public AChartDisplay(Chart chart) {// final
 		super();
@@ -123,6 +137,9 @@ public class AChartDisplay {
 //		String prefix = charts == null ? "" : String.valueOf(id) + "_";
 		JFreeChart jf = chart.getChart();
 		
+		
+		
+		
 
 	
 		
@@ -138,39 +155,71 @@ public class AChartDisplay {
 				jf.getTitle().setFont(titleFont);
 			}
 			
-			jf.getLegend().setItemFont(axisLableFont);
+			if(jf.getLegend()!=null) {
+				jf.getLegend().setItemFont(axisLableFont);
+			}
 			for (int j = 0; j < jf.getSubtitleCount(); j++) {
 				jf.getSubtitle(j).setVisible(true);
-				jf.getLegend().setVisible(true);
+				//jf.getLegend().setVisible(true);
 			}
 			if (jf.getTitle() != null)
 				jf.getTitle().setVisible(true); // Dan: added to make sure title visible
-			setJSplitPane(setChartPane(jf), setDataPane(jf,chart.getUnitsLookup()));
+			//setJSplitPane(setChartPane(jf), setDataPane(jf,chart.getUnitsLookup()));
+			
 			dialog = CreateComponent.crtJDialog(chart.getGraphName());
-			dialog.setSize(new Dimension(640, 480));
-			dialog.setContentPane(sp);
-			dialog.pack();
+			dialog.setSize(new Dimension(smallSizeX, smallSizeY));
+			setJSplitPane(setChartPane(jf), null);
+			this.legendShowing= false;
+			if(jf!=null && jf.getLegend()!=null) {
+				this.legendShowing=jf.getLegend().visible;
+			}
+			if(legendShowing) {
+				jb_legend.setText("Hide Legend");
+			}else {
+				jb_legend.setText("Show Legend");
+			}
+			//dialog.setContentPane(sp);
+			//dialog.pack();
+			smallSizeX=dialog.getWidth();
+			smallSizeY=dialog.getHeight();
 			dialog.setVisible(true);
 		}
 	}
 
 	// Set Chart and Data panel
 	private void setJSplitPane(JScrollPane chartPane, JScrollPane dataPane) {
-		sp.setOrientation(JSplitPane.VERTICAL_SPLIT);
-		sp.setTopComponent(chartPane);
-		sp.setBottomComponent(dataPane);
-		sp.setDividerLocation(0.8);
+		sp=null;
+		
+		if(dataPane!=null) {
+			
+			sp=new JSplitPane();
+			sp.setOrientation(JSplitPane.VERTICAL_SPLIT);
+			sp.setTopComponent(chartPane);
+			sp.setBottomComponent(dataPane);
+			sp.setDividerLocation(0.9);
+			sp.setDividerSize(5);
+			dialog.setContentPane(sp);
+		}else {
+			
+			dialog.setContentPane(chartPane);
+		}
+		
+		dialog.pack();
+		dialog.setVisible(true);
 	}
 
 	// Set running chart - subset, pie
 	private JScrollPane setChartPane(JFreeChart jfreechart) {
-		ChartPanel chartPanel = new ChartPanel(jfreechart);
-		JPanel chartPane = new JPanel(new BorderLayout());
-		chartPane.add(chartPanel, BorderLayout.CENTER);
-		chartPane.add(chartOption(), BorderLayout.SOUTH);
-		chartPane.setMinimumSize(new Dimension(640, 360));
-		chartPane.updateUI();
-		return new JScrollPane(chartPane);
+		if(chartPaneScroll==null) {
+			ChartPanel chartPanel = new ChartPanel(jfreechart);
+			JPanel chartPane = new JPanel(new BorderLayout());
+			chartPane.add(chartPanel, BorderLayout.CENTER);
+			chartPane.add(chartOption(), BorderLayout.SOUTH);
+			chartPane.setMinimumSize(new Dimension(640, 360));
+			chartPane.updateUI();
+			chartPaneScroll=new JScrollPane(chartPane);
+		}
+		return chartPaneScroll;
 	}
 
 	// set full set of data always
@@ -198,16 +247,79 @@ public class AChartDisplay {
 	}
 
 	private Box chartOption() {
-		JButton jb = new JButton("ChartOptions");
+		JButton jb = new JButton("Chart Options");
 		jb.setName("ChartOptions");
 		java.awt.event.MouseListener ml = new MouseAdapter() {
 			public void mouseClicked(MouseEvent e) {
-				new ChartOptions(sp, e.getXOnScreen(), e.getYOnScreen());
+				if(myOpts!=null) {
+					myOpts.dispose();
+					myOpts=null;
+				}
+				myOpts=new ChartOptions(sp, e.getXOnScreen(), e.getYOnScreen());
 			}
 		};
 		jb.addMouseListener(ml);
 		Box box = Box.createHorizontalBox();
 		box.add(jb);
+		
+		jb.setName("ChartOptions");
+		java.awt.event.MouseListener mlTable = new MouseAdapter() {
+			
+			public void mouseClicked(MouseEvent e) {
+				
+				this.toString();
+				
+				if(!tableShowing) {
+					//sp.remove(sp.getTopComponent());
+					jb_table.setText("Hide Table");
+					setJSplitPane(setChartPane(chart.getChart()), setDataPane(chart.getChart(),chart.getUnitsLookup()));
+					//dialog.setSize(new Dimension(smallSizeX, (int)((double)smallSizeY*1.2)));
+					
+				}else {
+					//sp.remove(sp.getBottomComponent());
+					jb_table.setText("Show Table");
+					setJSplitPane(setChartPane(chart.getChart()), null);
+					//dialog.setSize(new Dimension(smallSizeX, smallSizeY));
+					
+				}
+				//dialog.pack();
+				tableShowing=!tableShowing;	
+			}
+		};
+		jb_table.addMouseListener(mlTable);
+		box.add(jb_table);
+		java.awt.event.MouseListener mlLegend = new MouseAdapter() {
+			
+			public void mouseClicked(MouseEvent e) {
+				
+				if(!legendShowing) {
+					//sp.remove(sp.getTopComponent());'
+					JFreeChart jf = chart.getChart();
+					//jf.getLegend().setVisible(true);
+					jf.addLegend(chart.myLegend);
+					jb_legend.setText("Hide Legend");
+					
+					//setJSplitPane(setChartPane(chart.getChart()), setDataPane(chart.getChart(),chart.getUnitsLookup()));
+					//dialog.setSize(new Dimension(smallSizeX, (int)((double)smallSizeY*1.2)));
+					
+				}else {
+					//sp.remove(sp.getBottomComponent());
+					JFreeChart jf = chart.getChart();
+					//jf.getLegend().setVisible(true);
+					jf.removeLegend();
+					jb_legend.setText("Show Legend");
+					//setJSplitPane(setChartPane(chart.getChart()), null);
+					//dialog.setSize(new Dimension(smallSizeX, smallSizeY));
+					
+				}
+				//dialog.pack();
+				dialog.repaint();
+				legendShowing=!legendShowing;	
+			}
+		};
+		jb_legend.addMouseListener(mlLegend);
+		box.add(jb_legend);
+		
 		return box;
 	}
 
@@ -227,7 +339,7 @@ public class AChartDisplay {
 		// Chart data manipulation
 		private DataPanel datapane;
 		// Refresh Chart Panel
-		private JPanel jp = (JPanel) ((JScrollPane) sp.getTopComponent()).getViewport().getView();
+		//private JPanel jp = (JPanel) ((JScrollPane) sp.getTopComponent()).getViewport().getView();
 		private JFreeChart jfreechart;
 
 		public ChartOptions(JSplitPane sp, int x, int y) {
@@ -349,7 +461,7 @@ public class AChartDisplay {
 		}
 
 		private void refreshChart(JFreeChart jf) {
-			jf.getLegend().visible = true;
+			//jf.getLegend().visible = true;
 			ChartUtils.applyCurrentTheme(jf);
 			//Dan: Using modified version (2)
 			ThumbnailUtil2.validateChartPane(jp);

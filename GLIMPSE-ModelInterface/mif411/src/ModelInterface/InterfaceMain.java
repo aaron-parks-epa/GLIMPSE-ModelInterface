@@ -63,8 +63,10 @@ import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
+import javax.swing.JTree;
 import javax.swing.KeyStroke;
 import javax.swing.UIManager;
+import javax.swing.tree.TreePath;
 import javax.swing.undo.CannotRedoException;
 import javax.swing.undo.CannotUndoException;
 import javax.swing.undo.UndoManager;
@@ -73,6 +75,11 @@ import org.basex.query.QueryException;
 import org.basex.query.QueryProcessor;
 import org.basex.query.iter.Iter;
 import org.basex.query.value.item.Item;
+//import org.hsqldb.persist.DirectoryBlockCachedObject;
+import org.jfree.chart.ChartPanel;
+import org.jfree.chart.JFreeChart;
+import org.jfree.chart.plot.flow.FlowPlot;
+import org.jfree.data.flow.DefaultFlowDataset;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -81,19 +88,26 @@ import org.w3c.dom.NodeList;
 import ModelInterface.ConfigurationEditor.configurationeditor.ConfigurationEditor;
 import ModelInterface.ConfigurationEditor.utils.DOMUtils;
 import ModelInterface.ConfigurationEditor.utils.FileUtils;
+import ModelInterface.ModelGUI2.CSVFilter;
 //Dan: commented this out
 //import ModelInterface.DMsource.DMViewer;
 import ModelInterface.ModelGUI2.DbViewer;
 import ModelInterface.ModelGUI2.InputViewer;
+import ModelInterface.ModelGUI2.QueryTreeModel;
 import ModelInterface.ModelGUI2.XMLFilter;
+import ModelInterface.ModelGUI2.QueryTreeModel.QueryGroup;
 import ModelInterface.ModelGUI2.xmldb.XMLDB;
 import ModelInterface.PPsource.PPViewer;
 import ModelInterface.common.FileChooser;
 import ModelInterface.common.FileChooserFactory;
 import ModelInterface.common.RecentFilesList;
+import graphDisplay.SankeyDiagramPanel;
 import joptsimple.OptionException;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
+
+import com.sun.media.imageioimpl.common.PackageUtil;
+import java.lang.reflect.Field;
 
 public class InterfaceMain implements ActionListener {
 	/**
@@ -144,9 +158,8 @@ public class InterfaceMain implements ActionListener {
 	private JMenuItem batchMenu;
 	private JMenuItem toolsCSVMenu; // YD added
 	private JMenuItem toolsUnitMenu; // YD added
-	private JMenuItem toolsSankeyMenu; // YD added
-	private JMenuItem loadMenu; // YD added
-	private JMenuItem displayMenu; // YD added
+	//private JMenuItem toolsSankeyMenu; // YD moved to "DbViewer.java"
+	
 	private JMenuItem editQuerySubMenu; // YD added
 	private JMenu advancedSubMenu1;// YD added
 	private JMenu advancedSubMenu2;// YD added
@@ -165,6 +178,12 @@ public class InterfaceMain implements ActionListener {
 	public static String unitFileLocation = null;
 	public static String presetRegionListLocation = null; // YD added,Feb-2024
 	public static String favoriteQueriesFileLocation = null; // YD added,Feb-2024
+	public static String stateShapeFileLocation = null; //YD added,May-2024
+	public static String gcamReg32ShapeFileLocation = null; //YD added,July-2024
+	public static String gcamReg32US52ShapeFileLocation = null; //YD added,July-2024
+	public static boolean enableMapping = false; //YD added,August-2024
+	public static boolean enableSankey = false; //YD added,August-2024
+	public static String shapeFileLocationPrefix="exe";
 	/**
 	 * The main GUI the rest of the GUI components of the ModelInterface will rely
 	 * on.
@@ -202,6 +221,8 @@ public class InterfaceMain implements ActionListener {
 		parser.accepts("u", "Path to CSV file for unit conversions").withOptionalArg();
 		parser.accepts("p", "Path to preset region list").withOptionalArg(); // YD added,Feb-2024
 		parser.accepts("f", "Path to favorite queries file").withOptionalArg(); // YD added,Feb-2024
+		parser.accepts("shape","Path to United States shape file").withOptionalArg();//YD added,May-2024
+		parser.accepts("m", "disable mapping").withOptionalArg();//YD added,August-2024
 
 		OptionSet opts = null;
 		try {
@@ -325,7 +346,48 @@ public class InterfaceMain implements ActionListener {
 				//System.out.println("found the favorite queries file: " + favoriteQueriesFileLocation);
 			}
 		}
-		// YD edits end,Feb-2024
+		
+		//For mapUS52Compact shape files in ORDModelInterface
+		
+		if (opts.has("m")) {
+			shapeFileLocationPrefix = (String)opts.valueOf("m");
+			enableMapping=true;
+		}else {
+			//now check the path
+			File loc=new File("AllMapInfo");
+			if(loc.exists() && loc.isDirectory()) {
+				System.out.println("Found relative path at "+loc.getAbsolutePath());
+				shapeFileLocationPrefix=loc.getAbsolutePath();
+			}else {
+				enableMapping = false;
+			}
+		}
+		
+		//if(enableMapping) {
+		//go ahead and try to load files even if mapping is disabled, may be enabled later
+			File preset_shapefile = new File(shapeFileLocationPrefix+File.separator+"mapUS52Compact_from_rmap.shp");
+			if (preset_shapefile.exists()) {
+				stateShapeFileLocation = preset_shapefile.getAbsolutePath();
+			    System.out.println("found the US52Compact shape file: " + stateShapeFileLocation);
+		    }
+	
+			
+			
+			
+			File preset_reg32_shapefile = new File(shapeFileLocationPrefix+File.separator+"mapGCAMReg32_from_rmap.shp");
+			if (preset_reg32_shapefile.exists()) {
+				gcamReg32ShapeFileLocation = preset_reg32_shapefile.getAbsolutePath();
+			    System.out.println("found the US52Compact shape file: " + stateShapeFileLocation);
+		    }
+			
+			File preset_reg32US52_shapefile = new File(shapeFileLocationPrefix+File.separator+"mapGCAMReg32US52_from_rmap.shp");
+			if (preset_reg32US52_shapefile.exists()) {
+				gcamReg32US52ShapeFileLocation = preset_reg32US52_shapefile.getAbsolutePath();
+			    System.out.println("found the US52Compact shape file: " + stateShapeFileLocation);
+		    }
+		//}
+		
+		// YD edits end,July-2024
 
 		try {
 			UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
@@ -348,8 +410,43 @@ public class InterfaceMain implements ActionListener {
 				}
 			}
 		});
+		
+		//This bit of code makes JAI happy as it must have a vendor argument.
+		try {
+	        InterfaceMain.afVenderNames(PackageUtil.class, "GLIMPSE", "GLIMPSE", "GLIMPSE");
+	    } catch (NoSuchFieldException e1) {
+	        e1.printStackTrace();
+	    } catch (SecurityException e1) {
+	        e1.printStackTrace();
+	    } catch (IllegalArgumentException e1) {
+	        e1.printStackTrace();
+	    } catch (IllegalAccessException e1) {
+	        e1.printStackTrace();
+	    }
+	    //System.out.println(PackageUtil.getVendor());
+	    //System.out.println(PackageUtil.getVersion());
+	    //System.out.println(PackageUtil.getSpecificationTitle());
+	    
+	    
+	    
 
 	}
+	
+	//the static setup of JAI vendor names
+    public static void afVenderNames(Class<?> PackageUtil, String vendor, String version, String specTitle)
+	        throws NoSuchFieldException, SecurityException, IllegalArgumentException, IllegalAccessException {
+	    Field vendorField = PackageUtil.getDeclaredField("vendor");
+	    vendorField.setAccessible(true);
+	    vendorField.set(null, vendor);
+
+	    Field versionField = PackageUtil.getDeclaredField("version");
+	    versionField.setAccessible(true);
+	    versionField.set(null, version);
+
+	    Field specTitleField = PackageUtil.getDeclaredField("specTitle");
+	    specTitleField.setAccessible(true);
+	    specTitleField.set(null, specTitle);
+    }
 
 	/**
 	 * Create a new instance of this class and makes it visible
@@ -367,6 +464,24 @@ public class InterfaceMain implements ActionListener {
 		}
 		String lastHeight = main.savedProperties.getProperty("lastHeight", "600");
 		String lastWidth = main.savedProperties.getProperty("lastWidth", "800");
+		String enableMapping=main.savedProperties.getProperty("enableMapping", "false");
+		if(enableMapping!=null) {
+			try {
+				boolean enableMaps=Boolean.parseBoolean(enableMapping);
+				InterfaceMain.enableMapping=enableMaps;
+			}catch(Exception e) {
+				System.out.println("Couldn't parse enableMaps: "+enableMapping);
+			}
+		}
+		String enableSankey=main.savedProperties.getProperty("enableSankey", "false");
+		if(enableSankey!=null) {
+			try {
+				boolean enableSankeys=Boolean.parseBoolean(enableSankey);
+				InterfaceMain.enableSankey=enableSankeys;
+			}catch(Exception e) {
+				System.out.println("Couldn't parse enableSankey: "+enableMapping);
+			}
+		}
 		main.mainFrame.setSize(Integer.parseInt(lastWidth), Integer.parseInt(lastHeight));
 
 		main.mainFrame.setLayout(new BorderLayout());
@@ -384,6 +499,9 @@ public class InterfaceMain implements ActionListener {
 		mainFrame = null;
 		savedProperties = new Properties();
 		if (propertiesFile.exists()) {
+			System.out.println("Props: "+propertiesFile.getAbsolutePath());
+				
+			
 			try {
 				savedProperties.loadFromXML(new FileInputStream(propertiesFile));
 				String prettyPrintProperty = savedProperties.getProperty("pretty-print", null);
@@ -510,10 +628,12 @@ public class InterfaceMain implements ActionListener {
 		toolsUnitMenu.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_U, ActionEvent.CTRL_MASK));
 
 		menuMan.getSubMenuManager(EDIT_MENU_POS).addMenuItem(toolsUnitMenu, EDIT_QUERY_SUBMENU_POS);
-		// YD commented these lines out, hide "Sankey Diagrams" for now
+
+		// YD commented these lines out, moved "Sankey Diagrams" to "DbViewer.java"
 		// toolsSankeyMenu= new JMenu("Sankey Diagrams");
 		// menuMan.getSubMenuManager(TOOLS_MENU_POS).addMenuItem(toolsSankeyMenu,
 		// TOOLS_SANKEY_MENUITEM_POS);
+
 		// YD added the following lines to create two sub-menus under "Advanced"
 		// dropdown menu
 		advancedSubMenu1 = new JMenu("Queries");
@@ -541,7 +661,7 @@ public class InterfaceMain implements ActionListener {
 				.addSeparator(QUERIES_SAVEAS_MENUITEM_POS);
 
 		setupUndo(menuMan);
-		// doSankey(menuMan); //YD commented it out, hide "Sankey Diagrams" for now
+		
 	}
 
 	// second round YD edited the following lines to move "Undo" and "Redo" to be
@@ -590,7 +710,7 @@ public class InterfaceMain implements ActionListener {
 		undoMenu.addActionListener(undoListener);
 		redoMenu.addActionListener(undoListener);
 	}
-
+	
 	public UndoManager getUndoManager() {
 		return undoManager;
 	}
@@ -602,69 +722,7 @@ public class InterfaceMain implements ActionListener {
 		redoMenu.setEnabled(undoManager.canRedo());
 	}
 
-	/*
-	 * 
-	 * //YD added these lines for Sankey diagram private void doSankey(MenuManager
-	 * menuMan) { loadMenu = new JMenuItem("Load");
-	 * menuMan.getSubMenuManager(TOOLS_MENU_POS).getSubMenuManager(
-	 * TOOLS_SANKEY_MENUITEM_POS).addMenuItem(loadMenu, SANKEY_LOAD_MENUITEM_POS);
-	 * 
-	 * displayMenu = new JMenuItem("Display");
-	 * menuMan.getSubMenuManager(TOOLS_MENU_POS).getSubMenuManager(
-	 * TOOLS_SANKEY_MENUITEM_POS).addMenuItem(displayMenu,
-	 * SANKEY_DISPLAY_MENUITEM_POS);
-	 * 
-	 * loadMenu.setEnabled(true); displayMenu.setEnabled(true);
-	 * 
-	 * ActionListener sankeyListener = new ActionListener() { public void
-	 * actionPerformed(ActionEvent e) { String cmd = e.getActionCommand(); if
-	 * (cmd.equals("Load")) { FileChooser fc = FileChooserFactory.getFileChooser();
-	 * final File[] result = fc.doFilePrompt(mainFrame, "Load a csv File",
-	 * FileChooser.LOAD_DIALOG, new
-	 * File(getProperties().getProperty("lastDirectory", ".")), new CSVFilter());
-	 * System.out.println("Check load actionEvent now!!!! "); if (result != null) {
-	 * File file = result[0]; System.out.println("the uploaded csv file name is:");
-	 * System.out.println(file.getAbsolutePath()); if
-	 * ((file.getAbsolutePath().endsWith(".csv"))) { energyNameList =
-	 * files.getStringArrayFromFile(file.getAbsolutePath(), "#");
-	 * utils.printArrayList(energyNameList); }else {
-	 * utils.warningMessage("Only CSV file is acceptted!!!");
-	 * System.out.println("Only CSV file is acceptted!!!"); }
-	 * 
-	 * } // TODO: read the loaded csv file and save it to memory,YD added }else
-	 * if(cmd.equals("Display")) {
-	 * System.out.println("Check display actionEvent now!!!! "); //TODO: write a
-	 * method to construct a FlowDataset from the query results //this part is just
-	 * a placeholder and hard-coded with a sample FlowDataset
-	 * 
-	 * DefaultFlowDataset dataset = new DefaultFlowDataset(); dataset.setFlow(1,
-	 * "Work 1", "house", 30); dataset.setFlow(1, "Work 1", "food", 50);
-	 * dataset.setFlow(1, "Work 2", "food",50); dataset.setFlow(1, "Work 3",
-	 * "Clothing", 100); dataset.setFlow(1, "work 4", "house", 70);
-	 * 
-	 * System.out.println("Check stageCount now:");
-	 * System.out.println(dataset.getStageCount());
-	 * System.out.println("Check all nodes:");
-	 * System.out.println(dataset.getAllNodes());
-	 * 
-	 * FlowPlot myPlot = new FlowPlot(dataset);
-	 * System.out.println("Check plot type from flowplot:");
-	 * System.out.println(myPlot.getPlotType());
-	 * 
-	 * /* regions = getRegions(); regionList = new JList(regions);
-	 * regionList.setName(REGION_LIST_NAME); Object[] regionSel =
-	 * regionList.getSelectedValuesList().toArray();
-	 * 
-	 * if (regionSel.length == 0) { InterfaceMain.getInstance().
-	 * showMessageDialog("Please select Regions to run the query against",
-	 * "Run Sankey Error", JOptionPane.ERROR_MESSAGE); }else {
-	 * System.out.println("some regions are selected.");
-	 * System.out.println(regionSel); }
-	 * 
-	 * } } }; //actionListener end loadMenu.addActionListener(sankeyListener);
-	 * displayMenu.addActionListener(sankeyListener); }
-	 */
-
+	
 	private void addMenuAdderMenuItems(MenuManager menuMan) {
 		/*
 		 * FileChooserDemo is being removed, but I will leave this here, This is how I

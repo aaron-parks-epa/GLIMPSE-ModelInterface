@@ -26,7 +26,7 @@
 * Agreements 89-92423101 and 89-92549601. Contributors * from PNNL include 
 * Maridee Weber, Catherine Ledna, Gokul Iyer, Page Kyle, Marshall Wise, Matthew 
 * Binsted, and Pralit Patel. Coding contributions have also been made by Aaron 
-* Parks and Yadong Xu of ARA through the EPA’s Environmental Modeling and 
+* Parks and Yadong Xu of ARA through the EPA s Environmental Modeling and 
 * Visualization Laboratory contract. 
 * 
 */
@@ -45,24 +45,65 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.Vector;
 
 import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.DefaultComboBoxModel;
 import javax.swing.JButton;
+import javax.swing.JComboBox;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JMenuBar;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTable;
+import javax.swing.JToolBar;
+import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableColumn;
 import javax.swing.table.TableModel;
 import javax.swing.table.TableRowSorter;
 
+import org.geotools.data.FeatureSource;
+import org.geotools.data.shapefile.ShapefileDataStore;
+import org.geotools.feature.FeatureCollection;
+import org.geotools.feature.FeatureIterator;
+import org.geotools.map.FeatureLayer;
+import org.geotools.map.MapContent;
+import org.geotools.renderer.lite.StreamingRenderer;
+import org.geotools.styling.PolygonSymbolizer;
+import org.geotools.styling.Style;
+import org.geotools.styling.StyleBuilder;
+import org.geotools.swing.JMapFrame;
+import org.geotools.swing.JMapPane;
+import org.geotools.swing.tool.AbstractZoomTool;
+import org.geotools.swing.tool.PanTool;
+import org.geotools.swing.tool.ZoomInTool;
+import org.geotools.swing.tool.ZoomOutTool;
+import org.geotools.util.CheckedHashSet;
+import org.opengis.feature.Feature;
+import org.opengis.feature.simple.SimpleFeature;
+import org.opengis.feature.simple.SimpleFeatureType;
+import org.opengis.referencing.crs.CoordinateReferenceSystem;
+
+import ModelInterface.InterfaceMain;
 import ModelInterface.ModelGUI2.DbViewer;
 import chart.LegendUtil;
 import chartOptions.SelectDecimalFormat;
+import graphDisplay.StateMapPanel;
 import graphDisplay.ModelInterfaceUtil;
+import graphDisplay.SankeyDiagramFromTable;
 import graphDisplay.Thumbnail2;
+import graphDisplay.WorldMapPanel;
 
 /**
  * The class to handle a JTable filtered by meta data of other JTable, then
@@ -83,10 +124,14 @@ public class FilteredTable {
 	private JSplitPane sp;
 	private String[] tableColumnData;
 	private Thumbnail2 tn;
+	private StateMapPanel mp;
+	private SankeyDiagramFromTable sankeyP;
+	private WorldMapPanel worldMap;
 	private boolean debug = false;
 	private int sigfigs=3;
-
-	public FilteredTable(Map<String, String> sel, String chartName, String[][] units, String path, final JTable jTable,
+	
+	
+	public FilteredTable(Map<String, String> sel, String chartName, String[] unit, String path, final JTable jTable,
 			JSplitPane sp) {
 
 		this.sp = sp;
@@ -107,7 +152,7 @@ public class FilteredTable {
 		}
 
 		doubleIndex = ModelInterfaceUtil.getDoubleTypeColIndex(cls);
-		String[] qualifier = ModelInterfaceUtil.getColumnFromTable(jTable, 3);
+		String[] qualifier = ModelInterfaceUtil.getColumnFromTable(jTable, 5);
 		ArrayList<String> al = new ArrayList<String>();
 		ArrayList<Integer> alI = new ArrayList<Integer>();
 
@@ -170,7 +215,7 @@ public class FilteredTable {
 		else
 			newData = getfilterTableData(tData, getFilterData(qualifier, sel));
 		try {
-			DefaultTableModel dtm=new DefaultTableModel(newData,  al.toArray(new String[0])){
+			DefaultTableModel dtm = new DefaultTableModel(newData, al.toArray(new String[0])) {
 
 				@Override
 				public boolean isCellEditable(int row, int column) {
@@ -184,10 +229,10 @@ public class FilteredTable {
 			tableModel = jtable.getModel();
 			sorter = new TableRowSorter<TableModel>(tableModel);
 			jtable.setRowSorter(sorter);
-			//add custom sorters to columns that are numbers
-			for(int colC=0;colC<jtable.getColumnCount();colC++) {
+			// add custom sorters to columns that are numbers
+			for (int colC = 0; colC < jtable.getColumnCount(); colC++) {
 				String clsName = jtable.getColumnName(colC);
-				boolean isDouble=false;
+				boolean isDouble = false;
 				try {
 					Double.parseDouble(clsName);
 					//if we get here it is a numeric col
@@ -207,11 +252,13 @@ public class FilteredTable {
 		}
 
 		Box box = Box.createHorizontalBox();
+		
+		
 		JButton jb = new JButton("Filter");
 		jb.setBackground(LegendUtil.getRGB(-8205574));
 		java.awt.event.MouseListener ml = new MouseAdapter() {
 			public void mouseClicked(MouseEvent e) {
-				new FilterTreePane(chartName, units[0], path, jTable, sel, sp);
+				new FilterTreePane(chartName, unit, path, jTable, sel, sp);
 			}
 		};
 		jb.addMouseListener(ml);
@@ -223,13 +270,13 @@ public class FilteredTable {
 
 			public void mouseClicked(MouseEvent e) {
 				if (debug)
-					System.out.println("FilteredTable: graph press: " + chartName + " " + Arrays.toString(units[0]) + " "
+					System.out.println("FilteredTable: graph press: " + chartName + " " + Arrays.toString(unit) + " "
 							+ path + " " + doubleIndex + " " + jtable.getColumnCount() + "  " + jtable.getRowCount());
 				if (tn == null) {
 					//need to modify to get correct units for thumbnail
 					Map<String, Integer[]> metaMap = ModelInterfaceUtil.getMetaIndex2(jtable, doubleIndex);
 					HashMap<String,String> unitsMap=ModelInterfaceUtil.getUnitDataFromTableByLastNamedCol(jTable);
-					tn = new Thumbnail2(chartName, units[0], path, doubleIndex, jtable, metaMap, sp,unitsMap);
+					tn = new Thumbnail2(chartName, unit, path, doubleIndex, jtable, metaMap, sp,unitsMap);
 				}
 				JPanel jp = tn.getJp();
 				if (jp != null)
@@ -242,6 +289,99 @@ public class FilteredTable {
 		};
 		jb.addMouseListener(ml1);
 		box.add(jb);
+		
+		//YD added,Apr-2024
+		jb = new JButton("Mapping");
+		jb.setBackground(LegendUtil.getRGB(-8205574));
+		//jb.setEnabled(InterfaceMain.enableMapping);
+		java.awt.event.MouseListener mlmap = new MouseAdapter() {
+
+			public void mouseClicked(MouseEvent e) {
+				if (debug)
+					System.out.println("FilteredTable: mapping press: " + chartName + " " + Arrays.toString(unit) + " "
+							+ path + " " + doubleIndex + " " + jtable.getColumnCount() + "  " + jtable.getRowCount());
+				
+				//if (mp == null) {
+					Map<String, Integer[]> metaMap = ModelInterfaceUtil.getMetaIndex2(jtable, doubleIndex);
+					HashMap<String,String> unitsMap=ModelInterfaceUtil.getUnitDataFromTableByLastNamedCol(jtable);
+					boolean checkStates = checkContainAnyState(jtable);
+					boolean checkCountries = checkContainAnyCountryRegion(jtable);
+					boolean noRowSelected = jtable.getSelectionModel().isSelectionEmpty();
+					boolean containOtherColumns = checkContainOtherColumns(jtable);
+					
+					if (checkStates & !checkCountries) {
+						if (noRowSelected&containOtherColumns) {
+							JOptionPane.showMessageDialog(null, "Please select a row in the table first.");
+							return;	
+						}else {
+							mp = new StateMapPanel(chartName,jtable);
+						}
+					}else if (checkCountries & !checkStates) {
+						if (noRowSelected&containOtherColumns) {
+							JOptionPane.showMessageDialog(null, "Please select a row in the table first.");
+							return;	
+						}else {
+							boolean statesIncluded = false;	
+						    worldMap = new WorldMapPanel(chartName,jtable,statesIncluded);
+							}	
+					}else if(checkCountries & checkStates) {
+						if (noRowSelected&containOtherColumns) {
+							JOptionPane.showMessageDialog(null, "Please select a row in the table first.");
+							return;	
+						}else {
+							boolean statesIncluded = true;
+							worldMap = new WorldMapPanel(chartName,jtable,statesIncluded);
+						}
+					}
+				}
+				
+			//}
+		};
+		jb.addMouseListener(mlmap);
+		if(InterfaceMain.enableMapping) {
+			box.add(jb);
+		}
+		//YD edits end
+		
+		//YD added,September-2024
+		jb = new JButton("Sankey");
+		jb.setBackground(LegendUtil.getRGB(-8205574));
+		
+		java.awt.event.MouseListener mlSankey = new MouseAdapter() {
+
+			public void mouseClicked(MouseEvent e) {
+				//if (debug)
+					//System.out.println("FilteredTable: Sankey press: " + chartName + " " + Arrays.toString(units[0]) + " "
+					//		+ path + " " + doubleIndex + " " + jtable.getColumnCount() + "  " + jtable.getRowCount());
+				
+				//if (sankeyP == null) {
+					
+					boolean noRowSelected = jtable.getSelectionModel().isSelectionEmpty();
+					boolean containOtherColumns = checkContainOtherColumns(jtable);
+					
+						if (!containOtherColumns) {
+							JOptionPane.showMessageDialog(null, "the query results cannot generate a flow dataset.");
+							return;	
+						}else {
+					     try {
+							sankeyP = new SankeyDiagramFromTable(chartName,jtable);
+						} catch (ClassNotFoundException e1) {
+							// TODO Auto-generated catch block
+							e1.printStackTrace();
+						}
+						}
+					
+				//}
+				
+			}
+		};
+		jb.addMouseListener(mlSankey);
+		if(InterfaceMain.enableSankey) {
+			box.add(jb);
+		}
+		//YD edits end
+
+		
 		
 		jb = new JButton("Format");
 		jb.setBackground(LegendUtil.getRGB(-8205574));
@@ -309,7 +449,7 @@ public class FilteredTable {
 //	    return bd.toPlainString();
 //	}
 //	
-
+	
 	private Integer[] getTableColumnIndex(Map<String, String> sel) {
 
 		Integer[] tableColumnIndex = null;
@@ -358,6 +498,124 @@ public class FilteredTable {
 					+ Arrays.toString(Var.sectionYRange));
 		return tableColumnIndex;
 	}
+	
+	//YD added,May-2024,this method is to check if there are other columns inbetween "region" column and the first year column
+	private boolean checkContainOtherColumns(JTable jtable) {
+	boolean containOtherColumns = true;
+	int regionIdx = getColumnByName(jtable, "region");
+	ArrayList<String> yearList = getYearListFromTableData(jtable);
+	int firstYearIdx = FilteredTable.getColumnByName(jtable, yearList.get(0));
+	int idxDiff = firstYearIdx-regionIdx;
+	if (idxDiff==1) {
+		containOtherColumns = false;
+	}
+	return containOtherColumns;
+	}
+	
+	//YD added, May-2024
+	//this method is to get the year list to put in the dropdown menu in the toolbar
+	public static ArrayList<String> getYearListFromTableData(JTable jtable) {
+			
+			int nCols = jtable.getColumnCount();
+			//find out how many column names are query results for the years first
+			ArrayList<String> yearList = new ArrayList<String>();
+			for (int j = 0; j < nCols; j++) {
+						
+				String cls = jtable.getColumnName(j);
+				boolean isDouble=false;
+				try {
+					Double myYear = Double.parseDouble(cls);
+					isDouble=true;
+					String yearStr = String.valueOf(myYear.intValue());
+					yearList.add(yearStr);
+				} catch (Exception e) {
+							;
+				}
+			}
+			return yearList;
+		}
+	
+	//YD added,Apr-2024,this method is to check if jtable "region" column has states info
+	private boolean checkContainAnyState(JTable table) {
+	       boolean containStates = false;
+	       String stringStates = "AK,AL,AR,AZ,CA,CO,CT,DC,DE,FL,GA,HI,IA,ID,IL,IN,KS,KY,LA,MA,MD,ME,MI,MN,MO,MS,MT,NC,ND,NE,NH,NJ,NM,NV,NY,OH,OK,OR,PA,RI,SC,SD,TN,TX,UT,VA,VT,WA,WI,WV,WY";
+	       Integer[] cols = new Integer[1];
+	       int regionColIdx = getColumnByName(table,"region");
+	       cols[0]= regionColIdx;
+	       String[][] regionColData = getTableData(table,cols);
+	       String[] regions = new String[regionColData.length];
+	       for (int i=0; i<regionColData.length;i++) {
+	    	   regions[i] = regionColData[i][0];
+	       }
+	       Set regionSet = new HashSet(Arrays.asList(regions));
+	       String[] uniqueRegions = null;
+	       if (regions.length == regionSet.size()) {
+	    	   // all regions are distinct elements
+	    	    uniqueRegions = regions;
+	       }else {
+	    	   uniqueRegions = new String[regionSet.size()];
+	    	   regionSet.toArray(uniqueRegions);
+	       }
+	       containStates = stringContainsItemFromArray(stringStates,uniqueRegions);
+	       return containStates;
+	}
+	
+	//YD added,July-2024,this method is to check if jtable "region" column has countries info
+		private boolean checkContainAnyCountryRegion(JTable table) {
+		       boolean verbose=false;   
+		       boolean containCountry = false;
+		       String[] stringCountries = {/*"USA",*/"Africa_Eastern","Africa_Northern","Africa_Southern","Africa_Western","Australia_NZ",
+		    		   "Brazil","Canada","Central America and Caribbean","Central Asia","China","EU_12","EU_15","Europe_Eastern","Europe_Non_EU",
+		    		   "European Free Trade Association","India","Indonesia","Japan","Mexico","Middle East","Pakistan","Russia","South Africa",
+		    		   "South America_Northern","South America_Southern","South Asia","South Korea","Southeast Asia","Taiwan","Argentina","Colombia"};
+		       Integer[] cols = new Integer[1];
+		       int regionColIdx = getColumnByName(table,"region");
+		       cols[0]= regionColIdx;
+		       String[][] regionColData = getTableData(table,cols);
+		       String[] regions = new String[regionColData.length];
+		       for (int i=0; i<regionColData.length;i++) {
+		    	   regions[i] = regionColData[i][0];
+		       }
+		       if (verbose) System.out.println("in checkContainAnyCountry: "+regions.length);
+		       Set regionSet = new HashSet(Arrays.asList(regions));
+		       String[] uniqueRegions = null;
+		       if (regions.length == regionSet.size()) {
+		    	   // all regions are distinct elements
+		    	    uniqueRegions = regions;
+		       }else {
+		    	   uniqueRegions = new String[regionSet.size()];
+		    	   regionSet.toArray(uniqueRegions);
+		       }
+		       if (verbose) System.out.println("in checkContainAnyCountry: "+uniqueRegions.length);
+		   containCountry = arrayContainsItemFromArray(stringCountries,uniqueRegions);
+		   if (verbose) System.out.println("in checkContainAnyCountry: "+containCountry);
+		   return containCountry;
+		}
+	
+		
+	//YD added, Apr-2024,this method is to get the column index by match the column name
+	public static int getColumnByName(JTable table, String name) {
+			for (int i=0;i<table.getColumnCount();++i)
+				if (table.getColumnName(i).equals(name))
+					return i;
+			return -1;
+	}
+	//YD added, Apr-2024,this method is to check if a string contains any of the strings from an array
+	private boolean stringContainsItemFromArray(String inputStr,String[] items) {
+		return Arrays.stream(items).anyMatch(inputStr::contains);
+	}
+	
+	private boolean arrayContainsItemFromArray(String[] arrayStr,String[] items) {
+		List<String> itemsAsList = Arrays.asList(items);
+		for (int i=0; i<arrayStr.length;i++) {
+			if (itemsAsList.contains(arrayStr[i])) {
+				return true;
+			}
+		}
+		return false;
+	}
+	
+		//YD edits end
 
 	private String[][] getTableData(JTable jtable, Integer[] col) {
 		if (debug)
@@ -368,10 +626,10 @@ public class FilteredTable {
 				//Dan modified to work with new Diff Results panel
 				//String cls = jtable.getColumnClass(col[j].intValue()).getName();
 				String cls = jtable.getColumnName(col[j].intValue());
-				boolean isDouble=false;
+				boolean isDouble = false;
 				try {
 					Double.parseDouble(cls);
-					isDouble=true;
+					isDouble = true;
 				} catch (Exception e) {
 					;
 				}
@@ -411,7 +669,13 @@ public class FilteredTable {
 	    	return d.toString();
 	    }
 	    // this is more precise than simply doing "new BigDecimal(value);"
-	    BigDecimal bd = new BigDecimal(value, MathContext.DECIMAL64);
+	    
+	    BigDecimal bd = new BigDecimal(0.0);
+	    try{
+	    	bd=new BigDecimal(value, MathContext.DECIMAL64);
+	    }catch(Exception e) {
+	    	System.out.println("Could not create Decimal: "+e.toString());
+	    }
 	    bd = bd.round(new MathContext(significantDigits, RoundingMode.HALF_UP));
 	    final int precision = bd.precision();
 	    if (precision < significantDigits)
@@ -441,7 +705,14 @@ public class FilteredTable {
 
 			for (int j = 0; j < filter.size(); j++) {
 				for (int k = 0; k < filter.get(j).length; k++) {
-					if (source[i][j].trim().equals(filter.get(j)[k].trim())) {
+					//since units are at end, handle them differntly
+					if(j==filter.size()-1) {
+						if (source[i][source[0].length-1].trim().equals(filter.get(j)[k].trim())) {
+							found = true;
+							break;
+						} else
+							found = false;
+					}else if (source[i][j].trim().equals(filter.get(j)[k].trim())) {
 						found = true;
 						break;
 					} else

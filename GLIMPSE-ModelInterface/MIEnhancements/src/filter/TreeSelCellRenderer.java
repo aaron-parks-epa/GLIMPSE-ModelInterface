@@ -88,11 +88,7 @@ class TreeSelCellRenderer extends DefaultTreeCellRenderer {
 		checkBox.setHalfSelected(false);
 		if (node.getUserObject() instanceof TrNode) {
 			TrNode trNode = (TrNode) node.getUserObject();
-			if (trNode.type.equals("root")){
-				label.setBackground(UIManager.getColor("Tree.background"));
-				label.setText(node.toString());
-				return label;
-			}else if (trNode.isPartialSelectedForParent() && !node.isLeaf()){
+			if (trNode.isPartialSelectedForParent() && !node.isLeaf()){
 				checkBox.setSelected(false);
 				checkBox.setHalfSelected(true);
 			} else if (selected) {

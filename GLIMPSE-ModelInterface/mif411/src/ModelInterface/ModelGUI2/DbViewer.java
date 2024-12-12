@@ -1,5 +1,4 @@
-/*
-* LEGAL NOTICE
+/** LEGAL NOTICE
 * This computer software was prepared by Battelle Memorial Institute,
 * hereinafter the Contractor, under Contract No. DE-AC05-76RL0 1830
 * with the Department of Energy (DOE). NEITHER THE GOVERNMENT NOR THE
@@ -63,6 +62,7 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -148,6 +148,7 @@ import ModelInterface.BatchRunner;
 import ModelInterface.InterfaceMain;
 import ModelInterface.MenuAdder;
 import ModelInterface.ConfigurationEditor.guihelpers.XMLFileFilter;
+import ModelInterface.InterfaceMain.MenuManager;
 import ModelInterface.ModelGUI2.QueryTreeModel.QueryGroup;
 import ModelInterface.ModelGUI2.queries.QueryGenerator;
 import ModelInterface.ModelGUI2.queries.SingleQueryExtension;
@@ -161,6 +162,11 @@ import ModelInterface.common.DataPair;
 import ModelInterface.common.FileChooser;
 import ModelInterface.common.FileChooserFactory;
 import ModelInterface.common.RecentFilesList.RecentFile;
+
+import filter.FilterTreePaneYears;
+
+import graphDisplay.SankeyDiagramPanel;
+
 import javafx.collections.ObservableList;
 import javafx.scene.control.CheckBoxTreeItem;
 import javafx.scene.control.ComboBox;
@@ -207,7 +213,15 @@ public class DbViewer implements ActionListener, MenuAdder, BatchRunner {
 	private JMenuItem createFavoritesMenu;// YD Feb-2024
 	private JMenuItem loadFavoritesMenu;
 	private JMenuItem appendFavoritesMenu;// YD Feb-2024
+	private JMenuItem betaMn;
+
 	private JMenuItem menuExpPrn;
+
+	private JMenuItem toolsSankeyMenu; //YD Sep-2024
+	private JMenuItem loadMenu; // YD added
+	private JMenuItem displayMenu; // YD added
+	private SankeyDiagramPanel sankeyDiagram; //YD added
+
 	private String filteringText; // YD added
 	private Enumeration<TreePath> expansionState;// YD added
 	private boolean AllCollapsed = false; // YD added
@@ -224,11 +238,19 @@ public class DbViewer implements ActionListener, MenuAdder, BatchRunner {
 
 	public static final String SCENARIO_LIST_NAME = "scenario list";
 	public static final String REGION_LIST_NAME = "region list";
+	
+	
+	private static Map<String, String> selectedYears=null;
+	
+	
+	ArrayList<Object> windowList=new ArrayList<>();
 
 	public DbViewer() {
 		final InterfaceMain main = InterfaceMain.getInstance();
 		final JFrame parentFrame = main.getFrame();
 		final DbViewer thisViewer = this;
+		//getSelectedYearsFromPropFile();
+		//getAllYearListFromPropFIle();
 
 		try {
 			DOMImplementationRegistry reg = DOMImplementationRegistry.newInstance();
@@ -341,6 +363,77 @@ public class DbViewer implements ActionListener, MenuAdder, BatchRunner {
 		});
 
 	}
+	
+	public static Map<String, String> getSelectedYearsFromPropFile() {
+		
+		
+		if(DbViewer.selectedYears==null) {
+			
+		
+			DbViewer.selectedYears=new HashMap<>();
+		if(InterfaceMain.getInstance() != null) {
+		       Properties globalProperties = InterfaceMain.getInstance().getProperties();
+		       Object rsp=globalProperties.get("selectedYearList");
+		       if(rsp!=null) {
+		       String defaultYearStr=rsp.toString();
+		       
+		       String[] yearsArr = defaultYearStr.split(";");
+		       DbViewer.selectedYears = new HashMap<>();
+		       if(!(yearsArr.length == 1 && yearsArr[0].equals(""))) {
+			       for(String year : yearsArr ) {
+			    	   DbViewer.selectedYears.put(year+"", year+"");
+			       }
+		      }
+		       }
+	       } 
+		
+		if(DbViewer.selectedYears.size()==0) {
+			DbViewer.selectedYears.put("2015", "2015");
+	    	DbViewer.selectedYears.put("2020", "2020");
+	    	DbViewer.selectedYears.put("2025", "2025");
+	    	DbViewer.selectedYears.put("2030", "2030");
+	    	DbViewer.selectedYears.put("2035", "2035");
+	    	DbViewer.selectedYears.put("2040", "2040");
+	    	DbViewer.selectedYears.put("2045", "2045");
+	    	DbViewer.selectedYears.put("2050", "2050");
+	       }
+		}
+		return DbViewer.selectedYears;
+		
+	}
+	
+	public static List getAllYearListFromPropFile() {
+	       // the default year list could go in a preference dialog as well
+	       // WARNING: not thread safe
+		 List<String> allYearList=new ArrayList<String>();
+	           if(InterfaceMain.getInstance() != null) {
+			       Properties globalProperties = InterfaceMain.getInstance().getProperties();
+			       
+			       String allYearStr=globalProperties.get("allYearsList").toString();
+			       //globalProperties.setProperty("defaultYearList", defaultYearStr = 
+					//       globalProperties.getProperty("defaultYearList", 
+					//	       "1990;2005;2020;2035;2050;2065;2080;2095"));
+			       if(allYearStr!=null) {
+				       String[] yearsArr = allYearStr.split(";");
+				       allYearList = new ArrayList<String>(yearsArr.length);
+				       if(!(yearsArr.length == 1 && yearsArr[0].equals(""))) {
+					       for(String year : yearsArr ) {
+					    	   allYearList.add(year);
+					       }
+				      }
+			       }
+		       } else {
+		    	   allYearList = new ArrayList<String>();
+		    	   allYearList.add("1990");
+			       for(int i=2005;i<2101;i+=5) {
+			    	   allYearList.add(String.valueOf(i));
+			       }
+		       }
+			       
+			       
+	       
+	       return allYearList;
+ }
 
 	private JMenuItem makeMenuItem(String title) {
 		JMenuItem ret = new JMenuItem(title);
@@ -399,19 +492,54 @@ public class DbViewer implements ActionListener, MenuAdder, BatchRunner {
 
 			
 		});
-		menuExpPrn=new JMenuItem("Export Tabs as CSVs");
+		
+		JMenuItem winCl=new JMenuItem("Close All Windows");
+		winCl.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				closeAllWindows();
+			}
+
+			
+		});
+		menuExpPrn=makeMenuItem("Export Tabs as CSVs");
 		menuExpPrn.setEnabled(false);
 		menuMan.getSubMenuManager(InterfaceMain.VIEW_MENU_POS).addMenuItem(tabCl,1);
-		menuMan.getSubMenuManager(InterfaceMain.VIEW_MENU_POS).addSeparator(2);
+		menuMan.getSubMenuManager(InterfaceMain.VIEW_MENU_POS).addMenuItem(winCl,2);
+		menuMan.getSubMenuManager(InterfaceMain.VIEW_MENU_POS).addSeparator(3);
 		
-		//tabctrl.add(tabCl);
-		//tabctrl.add(menuExpPrn);
+		
+		// YD added lines, moved "Disable 3 Significant Digits" to the top
+				significantDigitsMenu = new JMenuItem("Disable 3 Significant Digits");
+				significantDigitsMenu.addActionListener(this);
+		menuMan.getSubMenuManager(InterfaceMain.VIEW_MENU_POS).addMenuItem(significantDigitsMenu, 10);
+		significantDigitsMenu.setEnabled(true);
+
+		enableUnitConversionsMenu = new JMenuItem("Disable Unit Conversions");
+		enableUnitConversionsMenu.addActionListener(this);
+		enableUnitConversionsMenu.setEnabled(true);
+		menuMan.getSubMenuManager(InterfaceMain.VIEW_MENU_POS).addMenuItem(enableUnitConversionsMenu, 11);
+		
+
+		JMenuItem yearsMn=new JMenuItem("Select Years");
+		yearsMn.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				new FilterTreePaneYears();
+			}
+
+			
+		});
+		
+		menuMan.getSubMenuManager(InterfaceMain.VIEW_MENU_POS).addSeparator(20);
+		menuMan.getSubMenuManager(InterfaceMain.VIEW_MENU_POS).addMenuItem(yearsMn, 21);
+		
+		
+		
+		
 		menuMan.getSubMenuManager(InterfaceMain.FILE_MENU_POS).addSeparator(InterfaceMain.FILE_MENU_SEPERATOR);
 		menuMan.getSubMenuManager(InterfaceMain.FILE_MENU_POS).addMenuItem(menuExpPrn, 35);
 		menuMan.getSubMenuManager(InterfaceMain.FILE_MENU_POS).addSeparator(37);
 		
 		
-		//menuMan.getSubMenuManager(InterfaceMain.FILE_MENU_POS).addMenuItem(tabctrl, InterfaceMain.FILE_TABS_SUBMENU_POS);
 		parentFrame.addPropertyChangeListener(new PropertyChangeListener() {
 			private int numQueries = 0;
 
@@ -430,25 +558,9 @@ public class DbViewer implements ActionListener, MenuAdder, BatchRunner {
 				}
 			}
 		});
-		// YD added lines, moved "Disable 3 Significant Digits" to the top
-		significantDigitsMenu = new JMenuItem("Disable 3 Significant Digits");
-		significantDigitsMenu.addActionListener(this);
 		
 		
-		//menuMan.getSubMenuManager(InterfaceMain.ADVANCED_MENU_POS)
-		//		.getSubMenuManager(InterfaceMain.ADVANCED_SUBMENU1_POS).addMenuItem(significantDigitsMenu, 0);
-		menuMan.getSubMenuManager(InterfaceMain.VIEW_MENU_POS).addMenuItem(significantDigitsMenu, 10);
-		// menuMan.getSubMenuManager(InterfaceMain.ADVANCED_MENU_POS).getSubMenuManager(InterfaceMain.ADVANCED_SUBMENU1_POS).addSeparator(0);
-		significantDigitsMenu.setEnabled(true);
-
-		enableUnitConversionsMenu = new JMenuItem("Disable Unit Conversions");
-		enableUnitConversionsMenu.addActionListener(this);
-		//menuMan.getSubMenuManager(InterfaceMain.ADVANCED_MENU_POS)
-		//		.getSubMenuManager(InterfaceMain.ADVANCED_SUBMENU1_POS).addMenuItem(enableUnitConversionsMenu, 1);
-		//menuMan.getSubMenuManager(InterfaceMain.ADVANCED_MENU_POS)
-		//		.getSubMenuManager(InterfaceMain.ADVANCED_SUBMENU1_POS).addSeparator(1);
-		enableUnitConversionsMenu.setEnabled(true);
-		menuMan.getSubMenuManager(InterfaceMain.VIEW_MENU_POS).addMenuItem(enableUnitConversionsMenu, 11);
+		
 		
 		
 		queriesLockMenu = new JMenuItem("Unlock Query Tree");
@@ -497,6 +609,16 @@ public class DbViewer implements ActionListener, MenuAdder, BatchRunner {
 		menuMan.getSubMenuManager(InterfaceMain.ADVANCED_MENU_POS)
 				.getSubMenuManager(InterfaceMain.ADVANCED_SUBMENU1_POS).addMenuItem(appendFavoritesMenu, 48);
 
+		
+		menuMan.getSubMenuManager(InterfaceMain.ADVANCED_MENU_POS).addSeparator(99);
+		String toUse="Enable Beta Features";
+		if(InterfaceMain.enableMapping==true || InterfaceMain.enableSankey==true) {
+			toUse="Disable Beta Features";
+		}
+		betaMn=new JMenuItem(toUse);
+		betaMn.addActionListener(this);
+		menuMan.getSubMenuManager(InterfaceMain.ADVANCED_MENU_POS).addMenuItem(betaMn, 100);
+
 	}
 
 	public void actionPerformed(ActionEvent e) {
@@ -528,7 +650,27 @@ public class DbViewer implements ActionListener, MenuAdder, BatchRunner {
 			}
 		} else if (e.getActionCommand().equals("Manage DB")) {
 			manageDB();
-		} else if (e.getActionCommand().equals("Batch Query File")) { // YD edits, changed "Batch File" to "Batch Query
+		}else if(e.getActionCommand().equals("Enable Beta Features")) {
+			betaMn.setText("Disable Beta Features");
+			InterfaceMain.enableMapping=true;
+			InterfaceMain.enableSankey=true;
+			Properties prop = main.getProperties();
+			prop.setProperty("enableMapping",
+					String.valueOf(InterfaceMain.enableMapping));
+			prop.setProperty("enableSankey",
+					String.valueOf(InterfaceMain.enableSankey));
+		}
+		else if(e.getActionCommand().equals("Disable Beta Features")) {
+			betaMn.setText("Enable Beta Features");
+			InterfaceMain.enableMapping=false;
+			InterfaceMain.enableSankey=false;
+			Properties prop = main.getProperties();
+			prop.setProperty("enableMapping",
+					String.valueOf(InterfaceMain.enableMapping));
+			prop.setProperty("enableSankey",
+					String.valueOf(InterfaceMain.enableSankey));
+			
+		}else if (e.getActionCommand().equals("Batch Query File")) { // YD edits, changed "Batch File" to "Batch Query
 																		// File"
 			FileChooser fc = FileChooserFactory.getFileChooser();
 			// Now open chooser
@@ -659,7 +801,8 @@ public class DbViewer implements ActionListener, MenuAdder, BatchRunner {
 		createTableSelector();
 		parentFrame.setTitle("GLIMPSE ModelInterface [" + dbFile + "]");
 	}
-
+	
+	
 	public static Vector<ScenarioListItem> getScenarios() {
 		return getScenarios(XMLDB.getInstance());
 	}
@@ -859,8 +1002,8 @@ public class DbViewer implements ActionListener, MenuAdder, BatchRunner {
 		final JCheckBox doTotalCheckBox = new JCheckBox("Total"); // Dan
 		final JButton queryFilterButton = new JButton("Search"); // YD,2024
 		final JButton favoriteQueryButton = new JButton("Favorites"); // YD added,Feb-2024
-		//final JButton closeAllTabsButton = new JButton("Close Tabs"); 
-		// editButton.setEnabled(false);
+		
+		
 		queriesEditMenu.setEnabled(false); // YD added
 		runQueryButton.setEnabled(false);
 		// sumQueryButton.setEnabled(false);
@@ -874,6 +1017,7 @@ public class DbViewer implements ActionListener, MenuAdder, BatchRunner {
 		buttonPanel.add(listCollapseButton);// Dan
 		buttonPanel.add(queryFilterButton); // YD,2024
 		buttonPanel.add(favoriteQueryButton); // YD added,Feb-2024
+		//buttonPanel.add(jby);
 		//buttonPanel.add(closeAllTabsButton);
 		// buttonPanel.add(getSingleQueryButton);
 		// buttonPanel.add(createButton);
@@ -1630,7 +1774,7 @@ public class DbViewer implements ActionListener, MenuAdder, BatchRunner {
 	// considering that the same query group name can appear multiple times in the
 	// same tree
 	// but at different locations,YD added
-	private ArrayList<TreePath> getFullTreePath2(JTree tree, String groupName, int pathCount) {
+	public static ArrayList<TreePath> getFullTreePath2(JTree tree, String groupName, int pathCount) {
 		Enumeration<TreePath> allPath = tree.getExpandedDescendants(new TreePath(tree.getModel().getRoot()));
 		ArrayList<TreePath> myTreePath = new ArrayList<TreePath>();
 		if (allPath != null) {
@@ -1645,6 +1789,7 @@ public class DbViewer implements ActionListener, MenuAdder, BatchRunner {
 				if (groupNameHasComma && treePath.toString().contains(groupName)) {
 					myTreePath.add(treePath);
 				} else if (checkPathCount == pathCount & currentGroup.trim().equals(groupName)) {
+					System.out.println("found for Sankey diagrams group:"+treePathStr);
 					myTreePath.add(treePath);
 				}
 			}
@@ -1732,6 +1877,20 @@ public class DbViewer implements ActionListener, MenuAdder, BatchRunner {
 	} // "loadRegionListToDropdown()" method end
 
 	public void closeAllTabs() {
+		//need to disable the export tabs option
+		menuExpPrn.setEnabled(false);
+		
+		//grab the panel
+		if (tablesTabs.getTabCount() == 0) {
+			//noting to do
+			return;
+		}
+		//iterate over children
+		tablesTabs.removeAll();
+		//close each one
+	}
+	
+	public void closeAllWindows() {
 		//need to disable the export tabs option
 		menuExpPrn.setEnabled(false);
 		
@@ -1868,9 +2027,10 @@ public class DbViewer implements ActionListener, MenuAdder, BatchRunner {
 	// selected in regionList
 	// then set those sub-regions selected in the regionList
 	public void selectPresetRegions() {
+		boolean verbose=false;
 		String selection = (String) comboBoxPresetRegions.getSelectedItem();
 		int idx = comboBoxPresetRegions.getSelectedIndex();
-		System.out.println("this is my selection: " + selection);
+		if (verbose) System.out.println("this is my selection: " + selection);
 		if (idx > 0) {// YD added,Apr-2024
 			for (int i = 0; i < preset_region_list.size(); i++) {
 				String line = preset_region_list.get(i);
@@ -1879,7 +2039,7 @@ public class DbViewer implements ActionListener, MenuAdder, BatchRunner {
 					String name = line.substring(0, index).toLowerCase();
 					if (selection.toLowerCase().equals(name)) {
 						String[] subregions = splitString(line.substring(index + 1), ",");
-						System.out.println("number of items in this subregion is: " + subregions.length);
+						if (verbose) System.out.println("number of items in this subregion is: " + subregions.length);
 						selectItemsFromRegionList(subregions);
 					}
 				}
@@ -1923,7 +2083,7 @@ public class DbViewer implements ActionListener, MenuAdder, BatchRunner {
 
 	// YD added,Feb-2024, this method is to get the row number for a leaf under a
 	// query group
-	private int getRowNumberForLeaf(JTree myTree, TreePath myPath, String leafName) {
+	public static int getRowNumberForLeaf(JTree myTree, TreePath myPath, String leafName) {
 		int rowNumForLeaf = -1;
 		int rowNumForSubgroup = myTree.getRowForPath(myPath);
 		QueryGroup myChildGroup = (QueryGroup) myPath.getLastPathComponent();
@@ -2365,16 +2525,17 @@ public class DbViewer implements ActionListener, MenuAdder, BatchRunner {
 		for (int i = 0; i < tab_count; i++) {
 			String tab_title = tablesTabs.getTitleAt(i).replaceAll(" ", "_").replaceAll(":", "");
 
-			System.out.println("Title:" + tab_title);
+			//System.out.println("Title:" + tab_title);
 
 			int k = 0;
 			for (int j = 0; j < tab_titles.size(); j++) {
 				if (tab_titles.get(j).equals(tab_title))
 					k++;
 			}
+			tab_titles.add(tab_title);
 			if (k > 0)
 				tab_title += ("_" + k);
-			tab_titles.add(tab_title);
+			
 
 			Component c = tablesTabs.getComponentAt(i);
 
@@ -2386,7 +2547,10 @@ public class DbViewer implements ActionListener, MenuAdder, BatchRunner {
 				String filename = exportLocation[0].getAbsolutePath() + File.separator + tab_title + ".csv";
 				writeTableModelToFile(filename, tm);
 			}
+			
+			
 		}
+		JOptionPane.showMessageDialog(null, tab_titles.size() + " files exported to " + exportLocation[0].getAbsolutePath());
 	}
 
 	protected boolean arrayListIncludes(ArrayList<String> array, String val) {
@@ -3001,7 +3165,7 @@ public class DbViewer implements ActionListener, MenuAdder, BatchRunner {
 		}
 	}
 
-	private String createCommentTooltip(TreePath path) {
+	public static String createCommentTooltip(TreePath path) {
 		QueryGenerator qg;
 		if (path.getLastPathComponent() instanceof QueryGenerator) {
 			qg = (QueryGenerator) path.getLastPathComponent();

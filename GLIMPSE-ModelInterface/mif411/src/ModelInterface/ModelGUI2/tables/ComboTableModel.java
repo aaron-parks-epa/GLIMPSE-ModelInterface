@@ -35,6 +35,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.StringTokenizer;
@@ -928,7 +929,8 @@ public class ComboTableModel extends BaseTableModel {
 		ANode tempNode;
 		final Set<String> yearLevelAxis = new TreeSet<String>();
 		final Set<String> nodeLevelAxis = new TreeSet/* LinkedHashSet */<String>();
-		yearLevelAxis.addAll(getDefaultYearList());
+		//List<String> years=getSelectedYearList();
+		//yearLevelAxis.addAll(years);
 		final Map dataTree = new TreeMap();
 		final Map<String, String> rewriteMap = qg.getNodeLevelRewriteMap();
 		// axisValues will be passed to the query generator which will set the
@@ -1007,6 +1009,19 @@ public class ComboTableModel extends BaseTableModel {
 		if (remove1975) {
 			yearLevelAxis.remove("1975");
 		}
+		
+		List<String> years=getSelectedYearList();
+		Set<String> yearLevelAxisNew = new TreeSet<String>();
+		for(String key:years) {
+			if(yearLevelAxis.contains(key)) {
+				yearLevelAxisNew.add(key);
+			}
+			
+		}
+		yearLevelAxis.clear();
+		yearLevelAxis.addAll(yearLevelAxisNew);
+		
+		
 		yearLevelAxis.add("Units");
 		if (qg.shouldAppendRewriteValues()) {
 			for (Iterator<String> rewriteValueIt = rewriteMap.values().iterator(); rewriteValueIt.hasNext();) {
@@ -1035,7 +1050,7 @@ public class ComboTableModel extends BaseTableModel {
 		ANode tempNode;
 		final Set<String> yearLevelAxis = new TreeSet<String>();
 		final Set<String> nodeLevelAxis = new TreeSet/* LinkedHashSet */<String>();
-		yearLevelAxis.addAll(getDefaultYearList());
+		yearLevelAxis.addAll(getSelectedYearList());
 		final Map dataTree = new TreeMap();
 		final Map<String, String> rewriteMap = qg.getNodeLevelRewriteMap();
 		// axisValues will be passed to the query generator which will set the

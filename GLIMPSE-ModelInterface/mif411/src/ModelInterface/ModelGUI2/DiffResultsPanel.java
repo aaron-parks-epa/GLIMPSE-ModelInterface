@@ -236,7 +236,7 @@ public class DiffResultsPanel extends QueryResultsPanel {
 		
 		String[][] units = getUnits(qg, jTable);
 		new FilteredTable(null, qg.toString(), // @1 //Dan changed from FilteredTable and added getUnits
-				units, path, // @1
+				units[0], path, // @1
 				jTable, sp); // @1
 
 		main.fireProperty("Query", null, bt); // @1
@@ -550,22 +550,23 @@ public class DiffResultsPanel extends QueryResultsPanel {
 		return -1;
 	}
 
-	private String[][] getUnits(QueryGenerator qg, JTable table) {
-		int last_col = table.getColumnCount() - 1;
-		int num_rows = table.getRowCount();
-		String[][] units = new String[num_rows][2];
-
-		if (qg != null) {
-			String item0 = qg.getAxis2Name();
-			for (int i = 0; i < num_rows; i++) {
-				units[i][0] = qg.getAxis2Name();
-				String u = (String) table.getValueAt(i, table.getColumnCount() - 1);
-				// if (this.show_pct_diff) u="pct";
-				units[i][1] = qg.getVariable() + " (" + u + ")";
-			}
-		}
-		return units;
-	}
+	//YD edited, Sep-2024, use the public staic method in "QueryResultsPanel" instead
+//	private String[][] getUnits(QueryGenerator qg, JTable table) {
+//		int last_col = table.getColumnCount() - 1;
+//		int num_rows = table.getRowCount();
+//		String[][] units = new String[num_rows][2];
+//
+//		if (qg != null) {
+//			String item0 = qg.getAxis2Name();
+//			for (int i = 0; i < num_rows; i++) {
+//				units[i][0] = qg.getAxis2Name();
+//				String u = (String) table.getValueAt(i, table.getColumnCount() - 1);
+//				// if (this.show_pct_diff) u="pct";
+//				units[i][1] = qg.getVariable() + " (" + u + ")";
+//			}
+//		}
+//		return units;
+//	}
 
 	private DefaultTableModel convertToDiffTable(TableModel tm) {
 

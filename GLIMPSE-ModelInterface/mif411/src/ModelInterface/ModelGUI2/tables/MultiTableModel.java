@@ -552,7 +552,7 @@ public class MultiTableModel extends BaseTableModel{
         ANode tempNode;
         final Set<String> yearLevelAxis = new TreeSet<String>();
         final Set<String> nodeLevelAxis = new TreeSet<String>();
-        yearLevelAxis.addAll(getDefaultYearList());
+        yearLevelAxis.addAll(getSelectedYearList());
         final Map dataTree = new LinkedHashMap();
         final Map<String, String> rewriteMap = qg.getNodeLevelRewriteMap();
         // axisValues will be passed to the query generator which will set the

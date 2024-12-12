@@ -294,7 +294,7 @@ public class QueryResultsPanel extends JPanel {
 //				unit, path, //@1
 //				jTable, sp); //@1
 		new FilteredTable(null, qg.toString(), // @1
-				units, path, // @1
+				units[0], path, // @1
 				jTable, sp); // @1
 
 		main.fireProperty("Query", null, bt); // @1
@@ -609,7 +609,7 @@ public class QueryResultsPanel extends JPanel {
 		return localInfo;
 	}
 
-	private String[][] getUnits(QueryGenerator qg, JTable table) {
+	public String[][] getUnits(QueryGenerator qg, JTable table) {
 		int last_col = table.getColumnCount() - 1;
 		int num_rows = table.getRowCount();
 		String[][] units = new String[num_rows][2];
@@ -802,3 +802,4 @@ public class QueryResultsPanel extends JPanel {
 	}
 
 }
+

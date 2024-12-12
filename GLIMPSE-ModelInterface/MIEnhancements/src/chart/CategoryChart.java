@@ -163,8 +163,7 @@ public class CategoryChart extends Chart {
 		
 		// In pie chart does not have legend stored, so get row keys as legend
 		if (legend==null)
-			legend = conversionUtil.ArrayConversion.list2String(dataset
-					.getRowKeys());
+			legend = conversionUtil.ArrayConversion.list2String(dataset.getRowKeys());
 		getlegendInfo(legend.split(","));
 		buildPaint();
 		plot.setFixedLegendItems(LegendUtil.crtLegenditemcollection(

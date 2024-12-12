@@ -1,3 +1,4 @@
+
 /*
 * LEGAL NOTICE
 * This computer software was prepared by Battelle Memorial Institute,
@@ -1542,3 +1543,4 @@ public class InputViewer implements ActionListener, TableModelListener, MenuAdde
 		}
 	}
 }
+

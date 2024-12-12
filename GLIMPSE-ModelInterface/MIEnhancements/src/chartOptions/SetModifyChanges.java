@@ -32,14 +32,17 @@
 */
 package chartOptions;
 
+import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Image;
 import java.awt.Paint;
 import java.awt.TexturePaint;
 import java.util.Arrays;
+import java.util.HashMap;
 
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
+import javax.swing.JComboBox;
 import javax.swing.JTextField;
 
 import org.jfree.chart.ChartFactory;
@@ -71,13 +74,15 @@ public class SetModifyChanges {
 	public static void setLegendChanges(Chart[] chart, int id, JTextField tf) {
 		for (int i = 0; i < chart.length; i++) {
 			String[] legend = chart[i].getLegend().split(",");
-			int idx = Arrays.asList(legend).indexOf(legend[Integer.valueOf(tf.getName().trim()).intValue()].trim());
+			//int idx = Arrays.asList(legend).indexOf(legend[Integer.valueOf(tf.getName().trim()).intValue()].trim());
+			//int idx = Arrays.asList(legend).indexOf(
+			chart[i].setLegend(ArrayConversion.array2String(legend));
 			
-			if (idx > -1) {
-				legend[idx] = tf.getText().trim();
-				chart[i].setLegend(ArrayConversion.array2String(legend));
+			for(int j=0;j<legend.length;j++) {
+				//legend[j] = tf.getText().trim();
+				
 				setLegenditemcollection(chart[i], legend, chart[i].getPaint());
-				setModifyChanges(chart[i], chart[i].getPaint(), idx);
+				setModifyChanges(chart[i], chart[i].getPaint());
 				if (debug)
 					System.out.println("SetModifyChanges::setLegendChanges:legend " + chart[i].getLegend());
 				ChartUtils.applyCurrentTheme(chart[id].getChart());
@@ -85,57 +90,65 @@ public class SetModifyChanges {
 		}
 	}
 
-	public static void setColorChanges(Chart[] chart, int id1, String changeColLegend, int theColor,
-			TexturePaint paint) {
+	public static void setColorChanges(Chart[] chart) {
+		//changing the color and tp are handled in the window eve
+		//here we just need to loop over and apply explicilty to
+		//each graph
 		for (int i = 0; i < chart.length; i++) {
 			String[] legend = chart[i].getLegend().split(",");
-			int idx = Arrays.asList(legend).indexOf(changeColLegend);
+			TexturePaint[] tp_color = chart[i].getPaint();
+			
+		
+			setLegenditemcollection(chart[i], legend, tp_color);
+			setModifyChanges(chart[i], tp_color);
+			//chart[i].getChart().fireChartChanged();
+			if (debug)
+				System.out.println(
+						"SetModifyChanges::setLegendChanges:color " + Arrays.toString(chart[i].getColor()));
+		
+			
+		}
+	}
 
-			if (idx > -1) {
-				TexturePaint[] color = chart[i].getPaint();
-				color[idx] = paint;
-				chart[i].setPaint(color);
-				chart[i].setColor(theColor, idx);
-				setLegenditemcollection(chart[i], legend, color);
-				setModifyChanges(chart[i], color, idx);
-				if (debug)
-					System.out.println(
-							"SetModifyChanges::setLegendChanges:color " + Arrays.toString(chart[i].getColor()));
+	public static void setPatternChanges(Chart[] chart, HashMap<String,JComboBox> comboLookup, int[] patternNums) {
+
+		for (int i = 0; i < chart.length; i++) {
+			String[] legend = chart[i].getLegend().split(",");
+			TexturePaint[] tp_color = chart[i].getPaint();
+			//int idx = Arrays.asList(legend).indexOf(changeColLegend);
+
+			//if (idx > -1) {
+			for(int j=0;j<legend.length;j++) {
+				//int pattern = Integer.parseInt(tf.getText().trim());
+				//int sel=comboLookup.get(legend[j]).getSelectedIndex();
+				int sel=0;
+				if(comboLookup.get(legend[j].trim())!=null) {
+					sel=comboLookup.get(legend[j].trim()).getSelectedIndex();
+				}
+				Color c=new Color(chart[i].getColor()[j]);
+				Color contrast=new Color(255-c.getRed(),255-c.getGreen(),255-c.getBlue());
+				TexturePaint tpMerge=LegendUtil.getTexturePaint(new Color(chart[i].getColor()[j]),contrast,patternNums[sel],1);
+				
+				tp_color[j] = tpMerge;
+				//chart[i].setPaint(tp);
+				chart[i].setPattern(patternNums[sel], j);
+				//if (i == id)
+				//	SetModifyChanges.updateButton(jb, chart[i].getPaint()[idx]);
+				setLegenditemcollection(chart[i], legend, tp_color);
+				setModifyChanges(chart[i], tp_color);
 			}
 		}
 	}
 
-	public static void setPatternChanges(Chart[] chart, int id, String changeColLegend, JTextField tf, JButton jb) {
-
-		for (int i = 0; i < chart.length; i++) {
-			String[] legend = chart[i].getLegend().split(",");
-			int idx = Arrays.asList(legend).indexOf(changeColLegend);
-
-			if (idx > -1) {
-				int pattern = Integer.parseInt(tf.getText().trim());
-				TexturePaint paint = LegendUtil.getTexturePaint(new Color(chart[id].getColor()[idx]), Color.black,
-						pattern, 0);
-				TexturePaint[] tp = chart[id].getPaint();
-				tp[idx] = paint;
-				chart[i].setPaint(tp);
-				chart[i].setPattern(pattern, idx);
-				if (i == id)
-					SetModifyChanges.updateButton(jb, chart[i].getPaint()[idx]);
-				setLegenditemcollection(chart[i], legend, tp);
-				setModifyChanges(chart[i], tp, idx);
-			}
-		}
-	}
-
-	public static JFreeChart setModifyChanges(Chart chart, TexturePaint[] tp, int idx) {
+	public static JFreeChart setModifyChanges(Chart chart, TexturePaint[] tp) {
 		AbstractRenderer renderer = null;
 		JFreeChart jfchart = chart.getChart();
 
-		if (jfchart.getPlot().getPlotType().contains("Pie")) {
-			PiePlot plot = (PiePlot) jfchart.getPlot();
-			String label = plot.getLegendItems().get(idx).getLabel();
-			plot.setSectionPaint(label, tp[idx]);
-		} else {
+		//if (jfchart.getPlot().getPlotType().contains("Pie")) {
+		//	PiePlot plot = (PiePlot) jfchart.getPlot();
+		//	String label = plot.getLegendItems().get(idx).getLabel();
+		//	plot.setSectionPaint(label, tp[idx]);
+		//} else {
 			if (jfchart.getPlot().getPlotType().equalsIgnoreCase("Category Plot")) {
 				CategoryPlot plot = jfchart.getCategoryPlot();
 				renderer = (AbstractRenderer) plot.getRenderer();
@@ -144,10 +157,13 @@ public class SetModifyChanges {
 				renderer = (AbstractRenderer) plot.getRenderer();
 			}
 
-			if (idx < tp.length)
+			//if (idx < tp.length)
+			//	renderer.setSeriesPaint(idx, tp[idx]);
+			for(int idx=0;idx<tp.length;idx++) {
 				renderer.setSeriesPaint(idx, tp[idx]);
-		}
-		jfchart.getLegend().visible = true;
+			}
+		//}
+		//jfchart.getLegend().visible = true;
 		ChartUtils.applyCurrentTheme(jfchart);
 		return jfchart;
 	}
@@ -158,32 +174,41 @@ public class SetModifyChanges {
 			chart.getChart().getCategoryPlot().setFixedLegendItems(LegendUtil.crtLegenditemcollection(legend, color));
 		} else if (chart.getChartClassName().contains("XY")) {
 			chart.getChart().getXYPlot().setFixedLegendItems(LegendUtil.crtLegenditemcollection(legend, color));
-		} else  //pie
-			for (int i = 0; i < color.length; i++)
-				((PiePlot)chart.getChart().getPlot()).setSectionPaint(legend[i], color[i]);
+		} //else  //pie
+			//for (int i = 0; i < color.length; i++)
+			//	((PiePlot)chart.getChart().getPlot()).setSectionPaint(legend[i], color[i]);
 	}
 
-	public static void setStrokeChanges(Chart[] chart, int id, String changeColLegend, JTextField tf) {
-		if (!chart[id].getChartClassName().contains("Line"))
-			return;
-
-		int idx = Integer.valueOf(tf.getName().trim());
-		int[] ls = chart[id].getLineStrokes();
-		ls[idx] = Integer.parseInt(tf.getText().trim());
-		for (int i = 0; i < chart.length; i++) {
-			chart[i].setLineStrokes(ls);
-			JFreeChart jfchart = chart[i].getChart();
-			if (jfchart.getPlot().getPlotType().equalsIgnoreCase("Category Plot")) {
-				CategoryPlot plot = jfchart.getCategoryPlot();
-				LineAndShapeRenderer renderer = (LineAndShapeRenderer) plot.getRenderer();
-				renderer.setSeriesStroke(idx, LegendUtil.getLineStroke(ls[idx]));
-			} else if (jfchart.getPlot().getPlotType().equalsIgnoreCase("XY Plot")) {
-				XYPlot plot = jfchart.getXYPlot();
-				XYLineAndShapeRenderer renderer = (XYLineAndShapeRenderer) plot.getRenderer();
-				renderer.setSeriesStroke(idx, LegendUtil.getLineStroke(ls[idx]));
+	public static void setStrokeChanges(Chart[] chart, HashMap<String,JComboBox> strokeLookup, BasicStroke[] stroke, int[] stokeVals) {
+		for(int j=0;j<chart.length;j++) {
+		
+			if (!chart[j].getChartClassName().contains("Line"))
+				continue;
+	
+			String[] legend = chart[j].getLegend().split(",");
+			//int idx = Integer.valueOf(tf.getName().trim());
+			int[] ls = chart[j].getLineStrokes();
+			//ls[idx] = Integer.parseInt(tf.getText().trim());
+			JFreeChart jfchart = chart[j].getChart();
+			for (int i = 0; i < legend.length; i++) {
+				//chart[i].setLineStrokes(ls);
+				
+				int idx=strokeLookup.get(legend[i].trim()).getSelectedIndex();
+				if (jfchart.getPlot().getPlotType().equalsIgnoreCase("Category Plot")) {
+					CategoryPlot plot = jfchart.getCategoryPlot();
+					LineAndShapeRenderer renderer = (LineAndShapeRenderer) plot.getRenderer();
+					
+					renderer.setSeriesStroke(i, stroke[idx]);
+					ls[i]=stokeVals[idx];
+				} else if (jfchart.getPlot().getPlotType().equalsIgnoreCase("XY Plot")) {
+					XYPlot plot = jfchart.getXYPlot();
+					XYLineAndShapeRenderer renderer = (XYLineAndShapeRenderer) plot.getRenderer();
+					renderer.setSeriesStroke(i, stroke[idx]);
+					ls[i]=stokeVals[idx];
+				}
+				ChartFactory.setChartTheme(StandardChartTheme.createLegacyTheme());
+				ChartUtils.applyCurrentTheme(jfchart);
 			}
-			ChartFactory.setChartTheme(StandardChartTheme.createLegacyTheme());
-			ChartUtils.applyCurrentTheme(jfchart);
 		}
 	}
 

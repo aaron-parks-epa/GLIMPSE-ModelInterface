@@ -58,7 +58,7 @@ class TrNode extends DefaultMutableTreeNode {
 		nodeName = nodename;
 		this.type = type;
 		this.isSelected = isSelected;
-		this.topNode = topNode == null ? null : topNode;
+		this.topNode = topNode;
 		setKeyStr();
 	}
 

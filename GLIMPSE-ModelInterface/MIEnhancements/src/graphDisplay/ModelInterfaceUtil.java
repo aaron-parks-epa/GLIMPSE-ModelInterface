@@ -85,6 +85,14 @@ public class ModelInterfaceUtil {
 		case 4: // all columns
 			data = getDataColumn(0, jtable.getColumnCount(), jtable);
 			break;
+		case 5: // all columns BUT years
+			String[] dataNoUnits = getDataColumn(0, cnt, jtable);
+			data=new String[dataNoUnits.length+1];
+			for(int i=0;i<dataNoUnits.length;i++) {
+				data[i]=dataNoUnits[i];
+			}
+			data[data.length-1]="Units";
+			break;
 		}
 		return data;
 	}
@@ -165,6 +173,11 @@ public class ModelInterfaceUtil {
 		case 4: // all columns
 			data = getTableData(jtable, 0, jtable.getColumnCount());
 			break;
+		case 5: // exclude values
+			data = getTableNonData(jtable, 0, cnt);
+		
+			
+			break;
 		}
 		return data;
 	}
@@ -185,6 +198,30 @@ public class ModelInterfaceUtil {
 				} else
 					data[i][j - start] = ((String) jtable.getValueAt(i, j));// .replace(",depth=1","");
 			}
+			if (debug)
+				System.out.println("ModelInterfaceUtil:getTableData:data: " + Arrays.toString(data[i]));
+		}
+		return data;
+	}
+	
+	public static String[][] getTableNonData(JTable jtable, int start, int end) {
+		//we will append units on end
+		String[][] data = new String[jtable.getRowCount()][end - start+1];
+		if (debug)
+			System.out.println(
+					"ModelInterfaceUtil:getTableNonData:start: " + start + " end: " + end + " row: " + data.length);
+
+		for (int i = 0; i < jtable.getRowCount(); i++) {
+			for (int j = start; j < end; j++) {
+				// System.out.println("i:"+i+" j:"+j);
+				String cls = jtable.getColumnClass(j).getName();
+				if (!cls.equals("java.lang.Double")) {
+					data[i][j - start] = ((String) jtable.getValueAt(i, j));// .replace(",depth=1","");
+				}
+				
+			}
+			//at end of each row, add units
+			data[i][end]=((String) jtable.getValueAt(i, jtable.getColumnCount()-1));
 			if (debug)
 				System.out.println("ModelInterfaceUtil:getTableData:data: " + Arrays.toString(data[i]));
 		}

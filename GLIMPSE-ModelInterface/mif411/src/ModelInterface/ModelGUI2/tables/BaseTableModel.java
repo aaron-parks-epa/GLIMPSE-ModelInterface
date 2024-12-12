@@ -42,6 +42,7 @@ import java.beans.PropertyChangeListener;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Vector;
@@ -74,6 +75,7 @@ import javax.xml.xpath.XPathFactory;
 import org.apache.poi.hssf.usermodel.HSSFPatriarch;
 import org.apache.poi.hssf.usermodel.HSSFSheet;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.basex.util.Prop;
 import org.jfree.chart.JFreeChart;
 import org.w3c.dom.Document;
 import org.w3c.dom.NamedNodeMap;
@@ -94,7 +96,7 @@ public abstract class BaseTableModel extends AbstractTableModel {
 	protected String units;
 	protected boolean remove1975;
 	protected TableSorter sortedTable;
-	private java.util.List<String> defaultYearList;
+	//private java.util.List<String> defaultYearList;
 
 	// stuff for filtering
 	// can i move these somewhere
@@ -770,24 +772,45 @@ public abstract class BaseTableModel extends AbstractTableModel {
 	       return ret;
        }
 
-       public java.util.List<String> getDefaultYearList() {
+       public List<String> getSelectedYearList() {
+    	   
+    	  List<String> defaultYearList = new ArrayList<String>();
+    	   
+			
 	       // the default year list could go in a preference dialog as well
 	       // WARNING: not thread safe
-	       if(defaultYearList == null) {
+	       
 		       if(InterfaceMain.getInstance() != null) {
-			       Properties globalProperties = InterfaceMain.getInstance().getProperties();
-			       String defaultYearStr;
-			       globalProperties.setProperty("defaultYearList", defaultYearStr = 
-					       globalProperties.getProperty("defaultYearList", 
-						       "1990;2005;2020;2035;2050;2065;2080;2095"));
-			       String[] yearsArr = defaultYearStr.split(";");
-			       defaultYearList = new ArrayList<String>(yearsArr.length);
-			       if(!(yearsArr.length == 1 && yearsArr[0].equals(""))) {
-				       for(String year : yearsArr ) {
-					       defaultYearList.add(year);
+		    	   Properties globalProperties = InterfaceMain.getInstance().getProperties();
+					String setYearList=null;;
+					setYearList = globalProperties.getProperty("selectedYearList");
+			       if(setYearList!=null && setYearList.length()>0) {
+						String[] setYearListArr = setYearList.split(";");
+				      
+					       for(String year : setYearListArr ) {
+						       defaultYearList.add(year);
+					       
 				       }
 			       }
-		       } else {
+			       
+			       
+			       if(defaultYearList.size()==0) {
+			    	   setYearList = globalProperties.getProperty("defaultYearList");
+				       if(setYearList!=null && setYearList.length()>0) {
+							String[] setYearListArr = setYearList.split(";");
+					      
+						       for(String year : setYearListArr ) {
+							       defaultYearList.add(year);
+						       
+					       }
+				       }
+			       }
+		       } 
+		       
+		       
+		       
+		       //this is very last resort
+		       if(defaultYearList.isEmpty()) {
 			       defaultYearList = new ArrayList<String>();
 			       defaultYearList.add("1990");
 			       defaultYearList.add("2005");
@@ -798,7 +821,7 @@ public abstract class BaseTableModel extends AbstractTableModel {
 			       defaultYearList.add("2080");
 			       defaultYearList.add("2095");
 		       }
-	       }
+	       
 	       return defaultYearList;
        }
 }

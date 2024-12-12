@@ -603,8 +603,9 @@ public class ThumbnailUtil2 {
 				else
 					freeChart.getXYPlot().getRangeAxis().setAutoRange(true);
 			}
-
-			freeChart.getLegend().visible = false;
+			if(freeChart.getLegend()!=null) {
+				freeChart.getLegend().visible = false;
+			}
 			freeChart.getTitle().setFont(new Font("Arial", 1, 12));
 			//freeChart.getTitle().setVisible(true);
 			freeChart.getTitle().setVisible(false);//Dan: modified to reduce amount of text on Thumbnails

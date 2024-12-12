@@ -57,6 +57,7 @@ import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.TreeNode;
 import javax.swing.tree.TreePath;
 
+import ModelInterface.ModelGUI2.DbViewer;
 import conversionUtil.ArrayConversion;
 import graphDisplay.GraphDisplayUtil;
 import graphDisplay.ModelInterfaceUtil;
@@ -74,7 +75,7 @@ public class FilterTreePane {
 	private static final boolean playWithLineStyle = false;
 	private static final String lineStyle = "Horizontal";
 	private JTree tree;
-	private Map<String, String> sel;
+	private Map<String, String> selOptions;
 	private boolean existSel = false;
 	private String chartName;
 	private String[] unit;
@@ -93,6 +94,7 @@ public class FilterTreePane {
 			init(chartName, unit, path, jtable, sel, sp);
 			showFilter();
 		} catch (Exception e) {
+			System.out.println("Error launching filter panel:"+e.toString());
 			dialog.dispose();
 		}
 	}
@@ -103,19 +105,19 @@ public class FilterTreePane {
 		this.unit = unit.clone();
 		this.path = path;
 		this.jtable = jtable;
-		this.sel = sel;
+		this.selOptions = sel;
 		this.sp = sp;
 		if (sel != null) {
-			this.sel = sel;
+			this.selOptions = sel;
 			existSel = true;
 		} else
-			this.sel = new LinkedHashMap<String, String>();
+			this.selOptions = new LinkedHashMap<String, String>();
 	}
 
 	private String[] buildTreeName(JTable jtable) {
 
-		String[] qualifier = ModelInterfaceUtil.getColumnFromTable(jtable, 3);
-		String[][] listData = ArrayConversion.arrayDimReverse(ModelInterfaceUtil.getDataFromTable(jtable, 3));
+		String[] qualifier = ModelInterfaceUtil.getColumnFromTable(jtable, 5);
+		String[][] listData = ArrayConversion.arrayDimReverse(ModelInterfaceUtil.getDataFromTable(jtable, 5));
 		ArrayList<String[]> tableColumnUniqueValues = GraphDisplayUtil.getUniqQualifierData(qualifier, listData);
 
 		ArrayList<String> al = buildNodesName(qualifier, tableColumnUniqueValues);
@@ -207,10 +209,15 @@ public class FilterTreePane {
 				JButton but = (JButton) e.getSource();
 				if (but.getName().trim().equals("Ok")) {
 					// if filter all unchecked give warning message
-					if (sel.isEmpty())
+					if (selOptions.isEmpty())
 						JOptionPane.showMessageDialog(null, "Select filter", "Warning", JOptionPane.WARNING_MESSAGE);
 					else {
-						new FilteredTable_orig(sel, chartName, unit, path, jtable, sp);
+						//add back in years
+						//for(String key:DbViewer.getSelectedYearsFromPropFile().keySet()) {
+						//	selOptions.put("Year|"+key,"Year|"+key);
+						//}
+						
+						new FilteredTable_orig(selOptions, chartName, unit, path, jtable, sp);
 						dialog.dispose();
 					}
 				} else
@@ -257,7 +264,7 @@ public class FilterTreePane {
 				if (j == nodename.length - 1) {
 					node = createNode(nodename[j], "Value", top);
 					if (debug)
-						System.out.println("createSubNode:sel: " + Arrays.toString(sel.values().toArray()));
+						System.out.println("createSubNode:sel: " + Arrays.toString(selOptions.values().toArray()));
 				} else {
 					node = createNode(nodename[j], "column", top);
 				}
@@ -280,13 +287,13 @@ public class FilterTreePane {
 
 			String k = ((TrNode) category.getUserObject()).keyStr;// @
 			if (type.equals("Value") && !existSel)
-				sel.put(k, k);// @
+				selOptions.put(k, k);// @
 
 			if (top != null) {
 				top.add(category);
 				if (top.toString().contains("Year")// @
 						&& !Arrays.asList(Var.sectionYRange).contains(nodename.trim())) {
-					sel.remove(k, k);
+					selOptions.remove(k, k);
 					((TrNode) category.getUserObject()).isSelected = false;
 				} // @
 			}
@@ -321,9 +328,9 @@ public class FilterTreePane {
 								selected = false;
 
 						if (selected)
-							sel.put(keyStr, keyStr);// n.toString()
+							selOptions.put(keyStr, keyStr);// n.toString()
 						else
-							sel.remove(keyStr, keyStr);
+							selOptions.remove(keyStr, keyStr);
 
 						((TrNode) n.getUserObject()).setSelected(selected);
 					} else
@@ -338,16 +345,16 @@ public class FilterTreePane {
 						selected = false;
 				}
 				if (selected)
-					sel.put(keyStr, keyStr);
+					selOptions.put(keyStr, keyStr);
 				else
-					sel.remove(keyStr, keyStr);
+					selOptions.remove(keyStr, keyStr);
 				DefaultMutableTreeNode pn = (DefaultMutableTreeNode) node.getParent();
 				checkPartial(pn, ((TrNode) pn.getUserObject()).isSelected);
 			}
 
 			if (debug)
-				for (String key : sel.keySet())
-					System.out.println("setNodeBoolean:sel: " + sel.get(key));
+				for (String key : selOptions.keySet())
+					System.out.println("setNodeBoolean:sel: " + selOptions.get(key));
 		} else
 			selectAllBox(selected);
 
@@ -419,7 +426,7 @@ public class FilterTreePane {
 	}
 
 	public void setSelBoolean() {
-		String[] leaf = sel.keySet().toArray(new String[0]);
+		String[] leaf = selOptions.keySet().toArray(new String[0]);
 		TreeNode root = (TreeNode) tree.getModel().getRoot();
 		TreePath tPath = new TreePath(root);
 		tree.expandPath(tPath);
